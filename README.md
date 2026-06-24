@@ -1,0 +1,64 @@
+This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+
+## Getting Started
+
+First, run the development server:
+
+```bash
+npm run dev
+# or
+yarn dev
+# or
+pnpm dev
+# or
+bun dev
+```
+
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+
+You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+
+This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+
+## Learn More
+
+To learn more about Next.js, take a look at the following resources:
+
+- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
+- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+
+You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+
+## Deploy on Vercel
+
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+
+Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+
+# 🚀 Guía de Comandos NPM para el Proyecto
+
+Este documento contiene los comandos esenciales de `npm` para ejecutar, construir e inspeccionar las propiedades y dependencias de la aplicación.
+
+---
+
+## 🛠️ Ejecución y Desarrollo
+
+Usa estos comandos para controlar el ciclo de vida de la aplicación en local o preparación para producción.
+
+| Comando | Propósito | ¿Cuándo usarlo? |
+| :--- | :--- | :--- |
+| `npm run dev` | Arranca el servidor de desarrollo en `localhost:3000`. | Mientras estás programando. Soporta *Hot Reload* (los cambios se ven al instante). |
+| `npm run build` | Compila la aplicación y la optimiza para producción. | Antes de subir a producción o para comprobar que no hay errores de TypeScript/Linter. |
+| `npm run start` | Arranca la aplicación ya optimizada (requiere haber ejecutado `build` antes). | Para probar el rendimiento real de la app tal y como funcionará en el servidor. |
+| `npm run lint` | Ejecuta el analizador de código (ESLint). | Para buscar malas prácticas o errores de sintaxis escondidos en tus archivos. |
+
+---
+
+## 🔍 Inspección de Propiedades y Dependencias
+
+Si necesitas saber qué librerías tienes instaladas, comprobar versiones o auditar la seguridad sin tener que abrir el archivo `package.json` a mano, usa estos comandos desde la terminal.
+
+### 1. Ver librerías instaladas
+* **Listar todo (raíz):** Muestra solo las librerías principales que tú has instalado, ignorando las sub-dependencias.
+```bash
+  npm ls --depth=0
