@@ -1,26 +1,2 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
+:root{--blue-900:#24445f;--blue-700:#356a93;--blue-500:#6fa8cf;--blue-100:#eaf5fb;--line:#d8e6ef;--text:#253542;--muted:#6b7c87;--bg:#f6fbfd;--ok:#2f7a4f;--warn:#b47a22;--danger:#b24d5d}
+*{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif;font-size:14px}.app-shell{display:grid;grid-template-columns:240px 1fr;min-height:100vh}.sidebar{background:#fff;border-right:1px solid var(--line);padding:16px}.brand{display:grid;gap:4px;margin-bottom:14px;color:var(--blue-900)}.brand span{font-size:12px;color:var(--muted)}nav{display:grid;gap:6px}nav a,.btn-soft{border:1px solid transparent;border-radius:999px;padding:8px 10px;color:var(--blue-900);text-decoration:none;background:transparent;text-align:left}nav a:hover,.btn-soft:hover{background:var(--blue-100);border-color:var(--line)}.content{padding:16px}.panel{background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;margin-bottom:12px}h1,h2,h3{font-weight:500;color:var(--blue-900);margin:0 0 10px}.muted{color:var(--muted)}.stats-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.stat{border:1px solid var(--line);border-radius:14px;padding:12px;background:#fbfdfe}.stat span{display:block;color:var(--muted);font-size:12px}.stat strong{font-size:24px;color:var(--blue-900)}table{width:100%;border-collapse:collapse}th,td{border-bottom:1px solid var(--line);padding:7px 8px;text-align:left}th{font-size:12px;color:var(--muted);font-weight:500}button{border:1px solid var(--blue-500);background:var(--blue-500);color:#fff;border-radius:999px;padding:8px 12px;cursor:pointer}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:8px;margin:4px 0 10px;background:#fff}.login-page{min-height:100vh;display:flex;align-items:center;justify-content:center}.login-box{width:370px;background:#fff;border:1px solid var(--line);border-radius:18px;padding:20px}

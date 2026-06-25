@@ -1,19 +1,32 @@
+:PROPERTIES:
+:ID:       9809d735-5e9f-459a-ad88-3625f7952082
+:END:
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
+
+[[file:img/2026-06-25_23-19-31_screenshot.png]]
+
 ** Getting Started
+
+Si acabas de clonar el proyecto debes primero instalar dependencias:
+#+begin_src bash
+npm install
+#+end_src
 
 First, run the development server:
 
 ```bash
+#+begin_src bash
 npm run dev
-* or
-yarn dev
-* or
-pnpm dev
-* or
-bun dev
-```
+#+end_src
 
+* Creación de tu variable locales
+Crear el fichero .env.local en el cual tenemos que definir estas dos variables para conectarnos con supabase:
+
+#+begin_src 
+NEXT_PUBLIC_SUPABASE_URL=https://tucodigo.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tusecreto
+#+end_src
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
