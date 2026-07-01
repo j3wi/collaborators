@@ -39,7 +39,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             {roleLabel[role] || role}
           </div>
           <form action="/logout" method="post">
-            <button className="btn-soft" style={{ width: '100%', marginTop: 8 }}>Salir</button>
+            <button className="btn soft" style={{ width: '100%', marginTop: 8 }}>Salir</button>
           </form>
         </div>
       </aside>

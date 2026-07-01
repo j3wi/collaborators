@@ -14,7 +14,7 @@ export default function LoginPage() {
           <label>Contraseña</label>
           <input name="password" type="password" required />
         </div>
-        <button className="btn-primary" type="submit" style={{ width: '100%' }}>Entrar</button>
+        <button className="btn primary" type="submit">Entrar</button>
       </form>
     </main>
   )
