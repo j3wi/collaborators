@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { crearColaborador, editarColaborador, borrarColaborador } from './actions'
+import { crearColaborador, editarColaborador } from './actions'
 import Link from 'next/link'
-import { EnviarAccesoForm } from './enviar-acceso-form'
+import { ColaboradoresTable } from './colaboradores-table'
 
 export default async function ColaboradoresPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
   const profile = await requireProfile()
@@ -17,6 +17,14 @@ export default async function ColaboradoresPage({ searchParams }: { searchParams
     .order('nombre')
 
   const editing = editId ? (colaboradores ?? []).find((c: any) => c.id === editId) : null
+  const collaboratorRows = (colaboradores ?? []).map((c: any) => ({
+    id: c.id,
+    nombre: `${c.nombre || ''} ${c.apellidos || ''}`.trim(),
+    email: c.email || '',
+    dni: c.dni || '',
+    direccion: c.direccion || '',
+    estado: c.activo !== false ? 'activo' : 'inactivo',
+  }))
 
   return (
     <>
@@ -65,44 +73,7 @@ export default async function ColaboradoresPage({ searchParams }: { searchParams
       )}
 
       <section className="panel">
-        <div className="panel-head">
-          <h3>Listado de colaboradores</h3>
-          <span className="tag">{colaboradores?.length ?? 0}</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Nombre</th><th>Email</th><th>DNI</th><th>Dirección</th><th>Estado</th>
-                {canEdit && <th className="no-print">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {(colaboradores ?? []).length === 0 && <tr><td colSpan={canEdit ? 6 : 5} className="center muted">Sin datos</td></tr>}
-              {(colaboradores ?? []).map((c: any) => (
-                <tr key={c.id}>
-                  <td>{c.nombre} {c.apellidos || ''}</td>
-                  <td>{c.email || '—'}</td>
-                  <td>{c.dni || '—'}</td>
-                  <td>{c.direccion || '—'}</td>
-                  <td>{c.activo !== false ? <span className="tag ok">Activo</span> : <span className="tag warn">Inactivo</span>}</td>
-                  {canEdit && (
-                    <td className="no-print nowrap">
-                      <div className="button-line">
-                        <Link href={`/colaboradores?editId=${c.id}`} className="btn soft">Editar</Link>
-                        <EnviarAccesoForm colaboradorId={c.id} />
-                        <form action={borrarColaborador} style={{ display: 'inline' }}>
-                          <input type="hidden" name="id" value={c.id} />
-                          <button className="btn danger" type="submit">Borrar</button>
-                        </form>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ColaboradoresTable colaboradores={collaboratorRows} canEdit={canEdit} />
       </section>
     </>
   )
