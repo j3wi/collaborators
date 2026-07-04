@@ -1,7 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { crearSupervisor, editarSupervisor, borrarSupervisor, reenviarAccesoSupervisor } from './actions'
+import { crearSupervisor, editarSupervisor } from './actions'
 import Link from 'next/link'
+import { SupervisoresTable } from './supervisores-table'
 
 export default async function SupervisoresPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
   const profile = await requireProfile()
@@ -20,6 +21,12 @@ export default async function SupervisoresPage({ searchParams }: { searchParams:
     .order('nombre')
 
   const editing = editId ? (supervisores ?? []).find((s: any) => s.id === editId) : null
+  const supervisorRows = (supervisores ?? []).map((s: any) => ({
+    id: s.id,
+    nombre: `${s.nombre || ''} ${s.apellidos || ''}`.trim(),
+    email: s.email || '',
+    estado: s.activo !== false ? 'activo' : 'inactivo',
+  }))
 
   return (
     <>
@@ -58,38 +65,7 @@ export default async function SupervisoresPage({ searchParams }: { searchParams:
       </section>
 
       <section className="panel">
-        <div className="panel-head">
-          <h3>Listado de supervisores</h3>
-          <span className="tag">{supervisores?.length ?? 0}</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead><tr><th>Nombre</th><th>Email</th><th>Estado</th><th className="no-print">Acciones</th></tr></thead>
-            <tbody>
-              {(supervisores ?? []).length === 0 && <tr><td colSpan={4} className="center muted">Sin datos</td></tr>}
-              {(supervisores ?? []).map((s: any) => (
-                <tr key={s.id}>
-                  <td>{s.nombre} {s.apellidos || ''}</td>
-                  <td>{s.email || '—'}</td>
-                  <td>{s.activo !== false ? <span className="tag ok">Activo</span> : <span className="tag warn">Inactivo</span>}</td>
-                  <td className="no-print nowrap">
-                    <div className="button-line">
-                      <Link href={`/supervisores?editId=${s.id}`} className="btn soft">Editar</Link>
-                      <form action={reenviarAccesoSupervisor} style={{ display: 'inline' }}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <button className="btn soft" type="submit">Enviar acceso</button>
-                      </form>
-                      <form action={borrarSupervisor} style={{ display: 'inline' }}>
-                        <input type="hidden" name="id" value={s.id} />
-                        <button className="btn danger" type="submit">Borrar</button>
-                      </form>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <SupervisoresTable supervisores={supervisorRows} />
       </section>
     </>
   )
