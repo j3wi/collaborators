@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { crearSupervisor, editarSupervisor, borrarSupervisor } from './actions'
+import { crearSupervisor, editarSupervisor, borrarSupervisor, reenviarAccesoSupervisor } from './actions'
 import Link from 'next/link'
 
 export default async function SupervisoresPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
@@ -75,6 +75,10 @@ export default async function SupervisoresPage({ searchParams }: { searchParams:
                   <td className="no-print nowrap">
                     <div className="button-line">
                       <Link href={`/supervisores?editId=${s.id}`} className="btn soft">Editar</Link>
+                      <form action={reenviarAccesoSupervisor} style={{ display: 'inline' }}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <button className="btn soft" type="submit">Enviar acceso</button>
+                      </form>
                       <form action={borrarSupervisor} style={{ display: 'inline' }}>
                         <input type="hidden" name="id" value={s.id} />
                         <button className="btn danger" type="submit">Borrar</button>

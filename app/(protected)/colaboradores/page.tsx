@@ -1,6 +1,6 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { crearColaborador, editarColaborador, borrarColaborador } from './actions'
+import { crearColaborador, editarColaborador, borrarColaborador, reenviarAccesoColaborador } from './actions'
 import Link from 'next/link'
 
 export default async function ColaboradoresPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
@@ -89,6 +89,10 @@ export default async function ColaboradoresPage({ searchParams }: { searchParams
                     <td className="no-print nowrap">
                       <div className="button-line">
                         <Link href={`/colaboradores?editId=${c.id}`} className="btn soft">Editar</Link>
+                        <form action={reenviarAccesoColaborador} style={{ display: 'inline' }}>
+                          <input type="hidden" name="id" value={c.id} />
+                          <button className="btn soft" type="submit">Enviar acceso</button>
+                        </form>
                         <form action={borrarColaborador} style={{ display: 'inline' }}>
                           <input type="hidden" name="id" value={c.id} />
                           <button className="btn danger" type="submit">Borrar</button>
