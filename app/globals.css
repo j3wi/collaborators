@@ -76,7 +76,7 @@ input[type="checkbox"]{width:auto;min-height:auto}
 .btn.ok{background:#eef8f1;border-color:#bed8c7;color:var(--ok)}
 .btn.warn{background:#fff7e5;border-color:#ead9a9;color:var(--warn)}
 .btn.danger{background:#fff0f0;border-color:#e0b8b8;color:var(--danger)}
-.btn:disabled{opacity:.45;cursor:not-allowed;background:#f5f7f8}
+.btn:disabled{opacity:1;cursor:not-allowed;background:#f5f7f8;color:var(--blue-900)!important}
 .button-line{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .btn-spinner{width:13px;height:13px;border-radius:999px;border:2px solid currentColor;border-right-color:transparent;display:inline-block;animation:spin .7s linear infinite}
 
