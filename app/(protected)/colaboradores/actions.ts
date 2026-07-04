@@ -4,6 +4,11 @@ import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
 import { sendPasswordSetupEmail } from '@/lib/auth/password-access'
 
+export type ReenviarAccesoState = {
+  ok: boolean
+  message: string
+} | null
+
 export async function crearColaborador(formData: FormData) {
   const profile = await requireProfile()
   if (profile.role !== 'admin' && profile.role !== 'supervisor') throw new Error('Sin permiso')
@@ -47,14 +52,22 @@ export async function borrarColaborador(formData: FormData) {
   revalidatePath('/colaboradores')
 }
 
-export async function reenviarAccesoColaborador(formData: FormData) {
-  const profile = await requireProfile()
-  if (profile.role !== 'admin' && profile.role !== 'supervisor') throw new Error('Sin permiso')
-  const supabase: any = await createClient()
-  const id = String(formData.get('id') || '')
-  const { data: colaborador, error } = await supabase.from('colaboradores').select('email').eq('id', id).single()
-  if (error) throw new Error(error.message)
-  if (!colaborador?.email) throw new Error('El colaborador no tiene email')
-  await sendPasswordSetupEmail(String(colaborador.email))
-  revalidatePath('/colaboradores')
+export async function reenviarAccesoColaborador(_prevState: ReenviarAccesoState, formData: FormData): Promise<ReenviarAccesoState> {
+  try {
+    const profile = await requireProfile()
+    if (profile.role !== 'admin' && profile.role !== 'supervisor') throw new Error('Sin permiso')
+    const supabase: any = await createClient()
+    const id = String(formData.get('id') || '')
+    const { data: colaborador, error } = await supabase.from('colaboradores').select('email').eq('id', id).single()
+    if (error) throw new Error(error.message)
+    if (!colaborador?.email) throw new Error('El colaborador no tiene email')
+    await sendPasswordSetupEmail(String(colaborador.email))
+    revalidatePath('/colaboradores')
+    return { ok: true, message: 'Acceso enviado correctamente' }
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : 'No se pudo enviar el acceso',
+    }
+  }
 }
