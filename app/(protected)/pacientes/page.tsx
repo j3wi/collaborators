@@ -1,7 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { crearPaciente, editarPaciente, borrarPaciente } from './actions'
+import { crearPaciente, editarPaciente } from './actions'
 import Link from 'next/link'
+import { PacientesTable } from './pacientes-table'
 
 export default async function PacientesPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
   const profile = await requireProfile()
@@ -59,6 +60,25 @@ export default async function PacientesPage({ searchParams }: { searchParams: Pr
   const editing = editId ? (pacientes ?? []).find((p: any) => p.id === editId) : null
   const editingColIds = editing ? (colsByPaciente[editing.id] || []).map((a: any) => a.colaborador_id) : []
   const editingSupId = editing ? supsByPaciente[editing.id]?.supervisor_id || '' : ''
+  const patientRows = (pacientes ?? []).map((p: any) => {
+    const cols = (colsByPaciente[p.id] || [])
+      .map((a: any) => a.colaboradores ? `${a.colaboradores.nombre} ${a.colaboradores.apellidos || ''}`.trim() : '')
+      .filter(Boolean)
+      .join(', ')
+    const supA = supsByPaciente[p.id]
+    const sup = supA?.supervisores ? `${supA.supervisores.nombre} ${supA.supervisores.apellidos || ''}`.trim() : ''
+
+    return {
+      id: p.id,
+      codigo: p.codigo || '',
+      paciente: `${p.nombre || ''} ${p.apellidos || ''}`.trim(),
+      email: p.email || '',
+      dni: p.dni || '',
+      colaboradores: cols,
+      supervisor: sup,
+      estado: p.activo !== false ? 'activo' : 'inactivo',
+    }
+  })
 
   return (
     <>
@@ -126,58 +146,7 @@ export default async function PacientesPage({ searchParams }: { searchParams: Pr
       {!canEdit && <div className="note">Tu usuario solo puede consultar los pacientes asignados.</div>}
 
       <section className="panel">
-        <div className="panel-head">
-          <h3>Listado de pacientes</h3>
-          <span className="tag">{pacientes?.length ?? 0}</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Código</th><th>Paciente</th><th>Email</th><th>DNI</th>
-                <th>Colaborador/es</th><th>Supervisor</th><th>Estado</th>
-                {canEdit && <th className="no-print">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {(pacientes ?? []).length === 0 && (
-                <tr><td colSpan={canEdit ? 8 : 7} className="center muted">Sin datos</td></tr>
-              )}
-              {(pacientes ?? []).map((p: any) => {
-                const cols = (colsByPaciente[p.id] || [])
-                  .map((a: any) => a.colaboradores ? `${a.colaboradores.nombre} ${a.colaboradores.apellidos || ''}` : '—')
-                  .join(', ') || '—'
-                const supA = supsByPaciente[p.id]
-                const sup = supA?.supervisores ? `${supA.supervisores.nombre} ${supA.supervisores.apellidos || ''}` : '—'
-                return (
-                  <tr key={p.id}>
-                    <td>{p.codigo}</td>
-                    <td>{p.nombre} {p.apellidos || ''}</td>
-                    <td>{p.email || '—'}</td>
-                    <td>{p.dni || '—'}</td>
-                    <td>{cols}</td>
-                    <td>{sup}</td>
-                    <td>{p.activo !== false
-                      ? <span className="tag ok">Activo</span>
-                      : <span className="tag warn">Inactivo</span>}
-                    </td>
-                    {canEdit && (
-                      <td className="no-print nowrap">
-                        <div className="button-line">
-                          <Link href={`/pacientes?editId=${p.id}`} className="btn soft">Editar</Link>
-                          <form action={borrarPaciente} style={{ display: 'inline' }}>
-                            <input type="hidden" name="id" value={p.id} />
-                            <button className="btn danger" type="submit">Borrar</button>
-                          </form>
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <PacientesTable pacientes={patientRows} canEdit={canEdit} />
       </section>
     </>
   )
