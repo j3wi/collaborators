@@ -1,8 +1,8 @@
 import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
-import { centsToEuros } from '@/lib/money'
-import { crearServicio, editarServicio, borrarServicio } from './actions'
+import { crearServicio, editarServicio } from './actions'
 import Link from 'next/link'
+import { ServiciosTable } from './servicios-table'
 
 export default async function ServiciosPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
   const profile = await requireProfile()
@@ -17,6 +17,13 @@ export default async function ServiciosPage({ searchParams }: { searchParams: Pr
     .order('nombre')
 
   const editing = editId ? (servicios ?? []).find((s: any) => s.id === editId) : null
+  const serviceRows = (servicios ?? []).map((s: any) => ({
+    id: s.id,
+    nombre: s.nombre || '',
+    precioCents: Number(s.precio_cents) || 0,
+    duracionMin: Number(s.duracion_min) || 0,
+    estado: s.activo !== false ? 'activo' : 'inactivo',
+  }))
 
   function euroInput(cents: number) {
     return ((cents || 0) / 100).toFixed(2).replace('.', ',')
@@ -61,45 +68,7 @@ export default async function ServiciosPage({ searchParams }: { searchParams: Pr
       )}
 
       <section className="panel">
-        <div className="panel-head">
-          <h3>Listado de servicios</h3>
-          <span className="tag">{servicios?.length ?? 0}</span>
-        </div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Servicio</th>
-                <th className="right">Precio</th>
-                <th className="right">Duración</th>
-                <th>Estado</th>
-                {canEdit && <th className="no-print">Acciones</th>}
-              </tr>
-            </thead>
-            <tbody>
-              {(servicios ?? []).length === 0 && <tr><td colSpan={canEdit ? 5 : 4} className="center muted">Sin datos</td></tr>}
-              {(servicios ?? []).map((s: any) => (
-                <tr key={s.id}>
-                  <td>{s.nombre}</td>
-                  <td className="right">{centsToEuros(s.precio_cents)}</td>
-                  <td className="right">{s.duracion_min} min</td>
-                  <td>{s.activo !== false ? <span className="tag ok">Activo</span> : <span className="tag warn">Inactivo</span>}</td>
-                  {canEdit && (
-                    <td className="no-print nowrap">
-                      <div className="button-line">
-                        <Link href={`/servicios?editId=${s.id}`} className="btn soft">Editar</Link>
-                        <form action={borrarServicio} style={{ display: 'inline' }}>
-                          <input type="hidden" name="id" value={s.id} />
-                          <button className="btn danger" type="submit">Borrar</button>
-                        </form>
-                      </div>
-                    </td>
-                  )}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <ServiciosTable servicios={serviceRows} canEdit={canEdit} />
       </section>
     </>
   )
