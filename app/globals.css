@@ -78,6 +78,11 @@ input[type="checkbox"]{width:auto;min-height:auto}
 .btn.danger{background:#fff0f0;border-color:#e0b8b8;color:var(--danger)}
 .btn:disabled{opacity:.45;cursor:not-allowed;background:#f5f7f8}
 .button-line{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.btn-spinner{width:13px;height:13px;border-radius:999px;border:2px solid currentColor;border-right-color:transparent;display:inline-block;animation:spin .7s linear infinite}
+
+@keyframes spin{
+  to{transform:rotate(360deg)}
+}
 
 /* ── Stats / Metrics ── */
 .grid-cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}

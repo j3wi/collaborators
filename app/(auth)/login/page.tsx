@@ -1,6 +1,7 @@
 import { login } from './actions'
 import Link from 'next/link'
 import { RecoveryRedirect } from './recovery-redirect'
+import { SubmitButton } from './submit-button'
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string; reset?: string; password?: string }> }) {
   const params = await searchParams
@@ -22,7 +23,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <label>Contraseña</label>
           <input name="password" type="password" required />
         </div>
-        <button className="btn primary" type="submit">Entrar</button>
+        <SubmitButton />
         <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
           <Link href="/login/recuperar" className="btn soft">¿Primera vez o no recuerdas la contraseña?</Link>
         </div>

@@ -1,5 +1,7 @@
 import Link from 'next/link'
 import { requireProfile } from '@/lib/auth/server'
+import { signOutAction } from './actions'
+import { LogoutButton } from './logout-button'
 
 const roleLabel: Record<string, string> = {
   admin: 'Administración',
@@ -38,8 +40,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
             <strong>{profile.nombre} {profile.apellidos || ''}</strong><br />
             {roleLabel[role] || role}
           </div>
-          <form action="/logout" method="post">
-            <button className="btn soft" style={{ width: '100%', marginTop: 8 }}>Salir</button>
+          <form action={signOutAction}>
+            <LogoutButton />
           </form>
         </div>
       </aside>
