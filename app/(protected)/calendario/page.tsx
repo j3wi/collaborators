@@ -14,7 +14,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const createDate = params.createDate || ''
   const createTime = params.createTime || ''
   const newMode = params.new || ''
-  const initialView = params.view || 'list'
+  const initialView = params.view
   const initialDate = params.currentDate || createDate || ''
 
   const isColaborador = profile.role === 'colaborador'

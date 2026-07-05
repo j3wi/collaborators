@@ -461,11 +461,21 @@ function WeekView({
   )
 }
 
-export function CalendarViews({ citas, canEdit, initialView = 'list', initialDate = '' }: CalendarViewsProps) {
-  const safeInitialView: ViewMode = initialView === 'month' || initialView === 'week' || initialView === 'list' ? initialView : 'list'
-  const [viewMode, setViewMode] = useState<ViewMode>(safeInitialView)
+export function CalendarViews({ citas, canEdit, initialView, initialDate = '' }: CalendarViewsProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (initialView === 'month' || initialView === 'week' || initialView === 'list') return initialView
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem('calendario:viewMode')
+      if (saved === 'month' || saved === 'week' || saved === 'list') return saved
+    }
+    return 'list'
+  })
   const [currentDate, setCurrentDate] = useState(() => initialDate || toISODate(new Date()))
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+
+  useEffect(() => {
+    window.localStorage.setItem('calendario:viewMode', viewMode)
+  }, [viewMode])
 
   useEffect(() => {
     if (!contextMenu) return
