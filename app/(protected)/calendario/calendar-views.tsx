@@ -2,6 +2,7 @@
 
 import { Fragment, useState, useMemo } from 'react'
 import { centsToEuros } from '@/lib/money'
+import { moverCitaSemana } from './actions'
 
 type Paciente = {
   id: string
@@ -267,6 +268,9 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
 }
 
 function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
+  const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
+  const [dragClickGuard, setDragClickGuard] = useState(false)
+
   const weekStart = getWeekStart(currentDate)
   const todayIso = toISODate(new Date())
   const hours = Array.from({ length: 16 }, (_, i) => i + 8)
@@ -321,6 +325,34 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                         href={`/calendario?new=1&createDate=${day.iso}&createTime=${slotTime}&view=week&currentDate=${currentDate}`}
                         title={`Crear cita ${formatDate(day.iso)} ${slotTime}`}
                         aria-label={`Crear cita ${day.iso} ${slotTime}`}
+                        onDragOver={(event) => {
+                          if (!draggedCitaId) return
+                          event.preventDefault()
+                          event.dataTransfer.dropEffect = 'move'
+                        }}
+                        onDragEnter={(event) => {
+                          if (!draggedCitaId) return
+                          event.preventDefault()
+                          event.currentTarget.classList.add('drop-ready')
+                        }}
+                        onDragLeave={(event) => {
+                          event.currentTarget.classList.remove('drop-ready')
+                        }}
+                        onDrop={async (event) => {
+                          if (!draggedCitaId) return
+                          event.preventDefault()
+                          event.stopPropagation()
+                          event.currentTarget.classList.remove('drop-ready')
+                          try {
+                            await moverCitaSemana(draggedCitaId, day.iso, slotTime)
+                          } catch (error) {
+                            const message = error instanceof Error ? error.message : 'No se pudo mover la cita'
+                            window.alert(message)
+                          } finally {
+                            setDraggedCitaId(null)
+                            setTimeout(() => setDragClickGuard(false), 160)
+                          }
+                        }}
                       />
                     )
                   })}
@@ -352,6 +384,23 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                         key={cita.id}
                         href={`/calendario?editId=${cita.id}`}
                         className={classes.join(' ')}
+                        draggable
+                        onClick={(event) => {
+                          if (dragClickGuard) event.preventDefault()
+                        }}
+                        onDragStart={(event) => {
+                          setDraggedCitaId(cita.id)
+                          setDragClickGuard(true)
+                          event.currentTarget.classList.add('dragging')
+                          event.dataTransfer.effectAllowed = 'move'
+                          event.dataTransfer.setData('text/plain', cita.id)
+                        }}
+                        onDragEnd={(event) => {
+                          event.currentTarget.classList.remove('dragging')
+                          setDraggedCitaId(null)
+                          document.querySelectorAll('.week-quarter-slot.drop-ready').forEach((el) => el.classList.remove('drop-ready'))
+                          setTimeout(() => setDragClickGuard(false), 160)
+                        }}
                         style={{
                           top: `calc(${top}% + 2px)`,
                           height: `calc(${height}% - 4px)`,

@@ -18,6 +18,21 @@ function addMonthsISO(baseDate: string, months: number): string {
   return date.toISOString().slice(0, 10)
 }
 
+function timeToMinutes(value: string): number | null {
+  const parts = String(value || '').split(':').map(Number)
+  const h = parts[0]
+  const m = parts[1] || 0
+  if (!Number.isFinite(h)) return null
+  return h * 60 + m
+}
+
+function minutesToTime(minutes: number): string {
+  const normalized = ((minutes % (24 * 60)) + (24 * 60)) % (24 * 60)
+  const h = Math.floor(normalized / 60)
+  const m = normalized % 60
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
 export async function crearCita(formData: FormData) {
   const profile = await requireProfile()
   const supabase: any = await createClient()
@@ -314,5 +329,60 @@ export async function repetirCita(formData: FormData) {
 
   revalidatePath('/calendario')
   revalidatePath('/dashboard')
+}
+
+export async function moverCitaSemana(citaId: string, fechaNueva: string, horaInicioNueva: string) {
+  const profile = await requireProfile()
+  const supabase: any = await createClient()
+
+  if (!citaId) throw new Error('Cita no valida')
+  if (!fechaNueva) throw new Error('Fecha no valida')
+  if (!horaInicioNueva) throw new Error('Hora no valida')
+
+  const { data: cita, error: citaError } = await supabase
+    .from('citas')
+    .select('id,fecha,hora_inicio,hora_fin,colaborador_id,liquidacion_id')
+    .eq('id', citaId)
+    .single()
+  if (citaError || !cita) throw new Error(citaError?.message || 'No se encontro la cita')
+
+  // Permisos básicos por rol: admin/supervisor pueden mover; colaborador solo sus citas.
+  if (profile.role === 'colaborador' && String(profile.colaborador_id || '') !== String(cita.colaborador_id || '')) {
+    throw new Error('Sin permiso')
+  }
+
+  if (cita.liquidacion_id) {
+    const { data: liquidacion } = await supabase
+      .from('liquidaciones')
+      .select('estado')
+      .eq('id', cita.liquidacion_id)
+      .single()
+    if (liquidacion?.estado === 'pagada') {
+      throw new Error('No se puede mover una cita incluida en una liquidacion pagada')
+    }
+  }
+
+  const startOld = timeToMinutes(cita.hora_inicio)
+  const endOld = timeToMinutes(cita.hora_fin)
+  const duration = startOld !== null && endOld !== null && endOld > startOld ? (endOld - startOld) : 60
+
+  const startNew = timeToMinutes(horaInicioNueva)
+  if (startNew === null) throw new Error('Hora no valida')
+  const horaFinNueva = minutesToTime(startNew + duration)
+
+  const { error: updateError } = await supabase
+    .from('citas')
+    .update({
+      fecha: fechaNueva,
+      hora_inicio: horaInicioNueva,
+      hora_fin: horaFinNueva,
+      updated_by: profile.id,
+    } as any)
+    .eq('id', citaId)
+  if (updateError) throw new Error(updateError.message)
+
+  revalidatePath('/calendario')
+  revalidatePath('/dashboard')
+  revalidatePath('/cobros')
 }
 
