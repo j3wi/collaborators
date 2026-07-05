@@ -23,7 +23,6 @@ export async function crearCita(formData: FormData) {
       pago_estado: 'pendiente',
       reminder_enabled: formData.get('reminder_enabled') === 'on',
       reminder_days_before: Number(formData.get('reminder_days_before') || 5),
-      notas: String(formData.get('notas') || ''),
       created_by: profile.id,
     } as any)
     .select('id')
@@ -33,6 +32,19 @@ export async function crearCita(formData: FormData) {
   if (cita && pacienteIds.length > 0) {
     const rows = pacienteIds.map((pid) => ({ cita_id: (cita as any).id, paciente_id: pid }))
     await supabase.from('cita_pacientes').insert(rows as any)
+  }
+
+  if (cita) {
+    const observaciones = String(formData.get('notas') || '').trim()
+    if (observaciones) {
+      const { error: notasError } = await supabase.from('cita_notas').upsert({
+        cita_id: (cita as any).id,
+        observaciones_clinicas: observaciones,
+        last_edited_by: profile.id,
+        last_edited_at: new Date().toISOString(),
+      } as any)
+      if (notasError) throw new Error(notasError.message)
+    }
   }
   revalidatePath('/calendario')
   revalidatePath('/dashboard')
@@ -77,7 +89,6 @@ export async function editarCita(formData: FormData) {
       pago_estado: String(formData.get('pago_estado') || 'pendiente'),
       reminder_enabled: formData.get('reminder_enabled') === 'on',
       reminder_days_before: Number(formData.get('reminder_days_before') || 5),
-      notas: String(formData.get('notas') || ''),
       updated_by: profile.id,
     } as any)
     .eq('id', citaId)
@@ -89,6 +100,19 @@ export async function editarCita(formData: FormData) {
     const rows = pacienteIds.map((pid) => ({ cita_id: citaId, paciente_id: pid }))
     const { error: inserError } = await supabase.from('cita_pacientes').insert(rows as any)
     if (inserError) throw new Error(inserError.message)
+  }
+
+  const observaciones = String(formData.get('notas') || '').trim()
+  if (observaciones) {
+    const { error: notasError } = await supabase.from('cita_notas').upsert({
+      cita_id: citaId,
+      observaciones_clinicas: observaciones,
+      last_edited_by: profile.id,
+      last_edited_at: new Date().toISOString(),
+    } as any)
+    if (notasError) throw new Error(notasError.message)
+  } else {
+    await supabase.from('cita_notas').delete().eq('cita_id', citaId)
   }
 
   revalidatePath('/calendario')

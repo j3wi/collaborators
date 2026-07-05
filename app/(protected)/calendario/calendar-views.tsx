@@ -20,7 +20,6 @@ type Cita = {
   precio_cents: number
   reminder_enabled: boolean
   reminder_days_before: number
-  notas: string | null
   liquidacion_id: string | null
   colaborador_id: string
   supervisor_id: string | null
@@ -28,6 +27,13 @@ type Cita = {
   colaboradores: { id: string; nombre: string; apellidos: string } | null
   supervisores: { id: string; nombre: string; apellidos: string } | null
   cita_pacientes: Array<{ pacientes: Paciente }>
+  cita_notas?: Array<{
+    observaciones_clinicas?: string | null
+    acuerdos_tareas?: string | null
+    incidencias?: string | null
+    last_edited_at?: string | null
+    last_edited_by?: string | null
+  }> | { observaciones_clinicas?: string | null }
 }
 
 type CalendarViewsProps = {
@@ -86,6 +92,10 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
     .map((row: any) => row.pacientes)
     .filter(Boolean)
 
+  const nota = Array.isArray(cita.cita_notas)
+    ? (cita.cita_notas[0]?.observaciones_clinicas || '')
+    : (cita.cita_notas?.observaciones_clinicas || '')
+
   const isInPaidLiquidation = Boolean(cita.liquidacion_id)
 
   return (
@@ -118,9 +128,9 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
             : <span className="tag warn">Pendiente</span>}
           {cita.liquidacion_id && <span className="tag warn">Liquidada</span>}
         </div>
-        {cita.notas && (
+        {nota && (
           <div className="note" style={{ marginTop: '6px' }}>
-            {cita.notas}
+            {nota}
           </div>
         )}
         {cita.reminder_enabled && <div className="subtle">Recordatorio en {cita.reminder_days_before} días</div>}

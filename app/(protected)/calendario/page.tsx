@@ -1,4 +1,5 @@
 import { createClient } from '@/utils/supabase/server'
+import { createAdminClient } from '@/utils/supabase/admin'
 import { requireProfile } from '@/lib/auth/server'
 import { crearCita, editarCita } from './actions'
 import { CalendarViews } from './calendar-views'
@@ -6,28 +7,87 @@ import { CalendarViews } from './calendar-views'
 export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
   const profile: any = await requireProfile()
   const supabase = await createClient()
+  const admin = createAdminClient()
   const params = await searchParams
   const editId = params.editId || ''
 
   const isColaborador = profile.role === 'colaborador'
   const canEdit = profile.role === 'admin' || profile.role === 'supervisor' || isColaborador
 
-  const { data: allCitasData } = await supabase
+  const { data: serviciosData } = await admin.from('servicios').select('id,nombre,precio_cents').eq('activo', true).order('nombre')
+  const { data: pacientesData } = await admin.from('pacientes').select('id,codigo,nombre,apellidos').eq('activo', true).order('codigo')
+  const { data: colaboradoresData } = await admin.from('colaboradores').select('id,nombre,apellidos').eq('activo', true).order('nombre')
+  const { data: supervisoresData } = await admin.from('supervisores').select('id,nombre,apellidos').eq('activo', true).order('nombre')
+
+  const servicios: any[] = serviciosData ?? []
+  const pacientes: any[] = pacientesData ?? []
+  const colaboradores: any[] = colaboradoresData ?? []
+  const supervisores: any[] = supervisoresData ?? []
+
+  let citasQuery = admin
     .from('citas')
-    .select('id,fecha,hora_inicio,hora_fin,estado,pago_estado,precio_cents,reminder_enabled,reminder_days_before,notas,liquidacion_id,colaborador_id,supervisor_id,servicios(id,nombre),colaboradores(id,nombre,apellidos),supervisores(id,nombre,apellidos),cita_pacientes(pacientes(id,codigo,nombre,apellidos))')
+    .select('id,fecha,hora_inicio,hora_fin,estado,pago_estado,precio_cents,reminder_enabled,reminder_days_before,liquidacion_id,colaborador_id,supervisor_id,servicios(id,nombre),colaboradores(id,nombre,apellidos),supervisores(id,nombre,apellidos),cita_pacientes(pacientes(id,codigo,nombre,apellidos)),cita_notas(observaciones_clinicas,acuerdos_tareas,incidencias,last_edited_at,last_edited_by)')
     .order('fecha', { ascending: false })
 
-  const allCitas = allCitasData ?? []
+  if (isColaborador && profile.colaborador_id) {
+    citasQuery = citasQuery.eq('colaborador_id', profile.colaborador_id)
+  }
 
-  const { data: serviciosData } = await supabase.from('servicios').select('id,nombre,precio_cents').eq('activo', true).order('nombre')
-  const { data: pacientesData } = await supabase.from('pacientes').select('id,codigo,nombre,apellidos').eq('activo', true).order('codigo')
-  const { data: colaboradoresData } = await supabase.from('colaboradores').select('id,nombre,apellidos').eq('activo', true).order('nombre')
-  const { data: supervisoresData } = await supabase.from('supervisores').select('id,nombre,apellidos').eq('activo', true).order('nombre')
+  const { data: allCitasData, error: citasError } = await citasQuery
 
-  const servicios = serviciosData ?? []
-  const pacientes = pacientesData ?? []
-  const colaboradores = colaboradoresData ?? []
-  const supervisores = supervisoresData ?? []
+  let allCitas: any[] = (allCitasData as any[]) ?? []
+
+  // Fallback defensivo: si falla el select con relaciones, recuperar citas base y mapear nombres.
+  if (citasError) {
+    let baseCitasQuery = admin
+      .from('citas')
+      .select('id,fecha,hora_inicio,hora_fin,estado,pago_estado,precio_cents,reminder_enabled,reminder_days_before,liquidacion_id,colaborador_id,supervisor_id,servicio_id')
+      .order('fecha', { ascending: false })
+
+    if (isColaborador && profile.colaborador_id) {
+      baseCitasQuery = baseCitasQuery.eq('colaborador_id', profile.colaborador_id)
+    }
+
+    const { data: baseCitas } = await baseCitasQuery
+
+    const serviciosById = new Map(servicios.map((s: any) => [s.id, s]))
+    const colaboradoresById = new Map(colaboradores.map((c: any) => [c.id, c]))
+    const supervisoresById = new Map(supervisores.map((s: any) => [s.id, s]))
+
+    const { data: citaPacientes } = await admin
+      .from('cita_pacientes')
+      .select('cita_id,pacientes(id,codigo,nombre,apellidos)')
+
+    const { data: citaNotasRows } = await admin
+      .from('cita_notas')
+      .select('cita_id,observaciones_clinicas,acuerdos_tareas,incidencias,last_edited_at,last_edited_by')
+
+    const pacientesByCita = new Map<string, any[]>()
+    ;(citaPacientes ?? []).forEach((row: any) => {
+      if (!pacientesByCita.has(row.cita_id)) pacientesByCita.set(row.cita_id, [])
+      if (row.pacientes) pacientesByCita.get(row.cita_id)?.push({ pacientes: row.pacientes })
+    })
+
+    const notasByCita = new Map<string, any[]>()
+    ;(citaNotasRows ?? []).forEach((row: any) => {
+      notasByCita.set(row.cita_id, [{
+        observaciones_clinicas: row.observaciones_clinicas || '',
+        acuerdos_tareas: row.acuerdos_tareas || '',
+        incidencias: row.incidencias || '',
+        last_edited_at: row.last_edited_at || null,
+        last_edited_by: row.last_edited_by || null,
+      }])
+    })
+
+    allCitas = (baseCitas ?? []).map((cita: any) => ({
+      ...cita,
+      servicios: cita.servicio_id ? serviciosById.get(cita.servicio_id) ?? null : null,
+      colaboradores: cita.colaborador_id ? colaboradoresById.get(cita.colaborador_id) ?? null : null,
+      supervisores: cita.supervisor_id ? supervisoresById.get(cita.supervisor_id) ?? null : null,
+      cita_pacientes: pacientesByCita.get(cita.id) ?? [],
+      cita_notas: notasByCita.get(cita.id) ?? [],
+    }))
+  }
 
   const today = new Date().toISOString().slice(0, 10)
   const editing = allCitas.find((c: any) => c.id === editId)
@@ -40,6 +100,12 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
 
   function euroInput(cents: number) {
     return ((cents || 0) / 100).toFixed(2).replace('.', ',')
+  }
+
+  function getObservaciones(cita: any): string {
+    if (!cita) return ''
+    if (Array.isArray(cita.cita_notas)) return cita.cita_notas[0]?.observaciones_clinicas || ''
+    return cita.cita_notas?.observaciones_clinicas || ''
   }
 
   const pacientesSeleccionados = editing ? (editing.cita_pacientes || []).map((row: any) => row.pacientes?.id).filter(Boolean) : []
@@ -134,7 +200,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
             )}
             <div className="field col-12">
               <label>Notas</label>
-              <textarea name="notas" defaultValue={editing?.notas || ''} placeholder="Observaciones clínicas..." />
+              <textarea name="notas" defaultValue={getObservaciones(editing)} placeholder="Observaciones clínicas..." />
             </div>
             <div className="field col-2">
               <button className="btn primary" type="submit">
