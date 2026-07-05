@@ -6,16 +6,22 @@ import { eurosToCents } from '@/lib/money'
 
 function addDaysISO(baseDate: string, days: number): string {
   const [year, month, day] = String(baseDate).split('-').map(Number)
-  const date = new Date(year, (month || 1) - 1, day || 1)
+  const date = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0)
   date.setDate(date.getDate() + days)
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function addMonthsISO(baseDate: string, months: number): string {
   const [year, month, day] = String(baseDate).split('-').map(Number)
-  const date = new Date(year, (month || 1) - 1, day || 1)
+  const date = new Date(year, (month || 1) - 1, day || 1, 12, 0, 0)
   date.setMonth(date.getMonth() + months)
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function timeToMinutes(value: string): number | null {
@@ -256,6 +262,7 @@ export async function repetirCita(formData: FormData) {
 
   const citaId = String(formData.get('cita_id') || '')
   const frecuencia = String(formData.get('frecuencia') || 'semanal')
+  const repeatMode = String(formData.get('repeat_mode') || 'count')
   const repeticiones = Math.max(1, Math.min(52, Number(formData.get('repeticiones') || 4)))
   const repetirHasta = String(formData.get('repetir_hasta') || '')
   if (!citaId) throw new Error('Cita no valida')
@@ -278,7 +285,9 @@ export async function repetirCita(formData: FormData) {
     .eq('cita_id', citaId)
     .maybeSingle()
 
-  for (let i = 1; i <= repeticiones; i += 1) {
+  const maxIterations = repeatMode === 'until' ? 366 : repeticiones
+
+  for (let i = 1; i <= maxIterations; i += 1) {
     const fechaNueva =
       frecuencia === 'diaria'
         ? addDaysISO(cita.fecha, i)
@@ -286,7 +295,10 @@ export async function repetirCita(formData: FormData) {
           ? addMonthsISO(cita.fecha, i)
           : addDaysISO(cita.fecha, i * 7)
 
-    if (repetirHasta && fechaNueva > repetirHasta) break
+    if (repeatMode === 'until') {
+      if (!repetirHasta) throw new Error('Indica la fecha limite para repetir')
+      if (fechaNueva > repetirHasta) break
+    }
 
     const { data: nuevaCita, error: nuevaError } = await supabase
       .from('citas')
@@ -325,6 +337,8 @@ export async function repetirCita(formData: FormData) {
       } as any)
       if (notasError) throw new Error(notasError.message)
     }
+
+    if (repeatMode !== 'until' && i >= repeticiones) break
   }
 
   revalidatePath('/calendario')

@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, useState, useMemo } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import { centsToEuros } from '@/lib/money'
 import { moverCitaSemana } from './actions'
 
@@ -45,6 +45,12 @@ type CalendarViewsProps = {
 }
 
 type ViewMode = 'list' | 'month' | 'week'
+
+type ContextMenuState = {
+  x: number
+  y: number
+  citaId: string
+}
 
 function toDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
@@ -196,7 +202,17 @@ function ListaView({ citas, canEdit }: { citas: Cita[]; canEdit: boolean }) {
   )
 }
 
-function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
+function MonthView({
+  citas,
+  currentDate,
+  canEdit,
+  onContextMenuOpen,
+}: {
+  citas: Cita[]
+  currentDate: string
+  canEdit: boolean
+  onContextMenuOpen: (event: React.MouseEvent, citaId: string) => void
+}) {
   const monthStart = getMonthStart(currentDate)
   const date = toDate(monthStart)
   const year = date.getFullYear()
@@ -250,6 +266,10 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
                     href={`/calendario?editId=${cita.id}`}
                     className={`cal-event ${cita.estado}`}
                     title={`${cita.hora_inicio} - ${cita.servicios?.nombre || 'Cita'}`}
+                    onContextMenu={(event) => {
+                      if (!canEdit) return
+                      onContextMenuOpen(event, cita.id)
+                    }}
                   >
                     <span className="cal-event-time">{formatTime(cita.hora_inicio)}</span>
                     <span className="cal-event-text">{cita.servicios?.nombre || '...'}</span>
@@ -267,7 +287,15 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
   )
 }
 
-function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
+function WeekView({
+  citas,
+  currentDate,
+  onContextMenuOpen,
+}: {
+  citas: Cita[]
+  currentDate: string
+  onContextMenuOpen: (event: React.MouseEvent, citaId: string) => void
+}) {
   const [draggedCitaId, setDraggedCitaId] = useState<string | null>(null)
   const [dragClickGuard, setDragClickGuard] = useState(false)
 
@@ -344,6 +372,7 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                           event.stopPropagation()
                           event.currentTarget.classList.remove('drop-ready')
                           try {
+                            if (!window.confirm(`Mover cita al ${formatDate(day.iso)} ${slotTime}?`)) return
                             await moverCitaSemana(draggedCitaId, day.iso, slotTime)
                           } catch (error) {
                             const message = error instanceof Error ? error.message : 'No se pudo mover la cita'
@@ -388,6 +417,10 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                         onClick={(event) => {
                           if (dragClickGuard) event.preventDefault()
                         }}
+                        onContextMenu={(event) => {
+                          event.preventDefault()
+                          onContextMenuOpen(event, cita.id)
+                        }}
                         onDragStart={(event) => {
                           setDraggedCitaId(cita.id)
                           setDragClickGuard(true)
@@ -429,6 +462,34 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
   const safeInitialView: ViewMode = initialView === 'month' || initialView === 'week' || initialView === 'list' ? initialView : 'list'
   const [viewMode, setViewMode] = useState<ViewMode>(safeInitialView)
   const [currentDate, setCurrentDate] = useState(() => initialDate || toISODate(new Date()))
+  const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null)
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    const onEsc = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') close()
+    }
+    window.addEventListener('click', close)
+    window.addEventListener('scroll', close, true)
+    window.addEventListener('keydown', onEsc)
+    return () => {
+      window.removeEventListener('click', close)
+      window.removeEventListener('scroll', close, true)
+      window.removeEventListener('keydown', onEsc)
+    }
+  }, [contextMenu])
+
+  function openContextMenu(event: React.MouseEvent, citaId: string) {
+    event.preventDefault()
+    setContextMenu({ x: event.clientX, y: event.clientY, citaId })
+  }
+
+  function goToContextAction(action: 'editar' | 'historia' | 'repetir' | 'borrar') {
+    if (!contextMenu) return
+    const hash = action === 'editar' ? '' : `#${action}`
+    window.location.assign(`/calendario?editId=${contextMenu.citaId}&view=${viewMode}&currentDate=${currentDate}${hash}`)
+  }
 
   const sortedCitas = useMemo(() => {
     return [...citas].sort((a, b) => {
@@ -523,8 +584,23 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
       </div>
 
       {viewMode === 'list' && <ListaView citas={sortedCitas} canEdit={canEdit} />}
-      {viewMode === 'month' && <MonthView citas={sortedCitas} currentDate={currentDate} />}
-      {viewMode === 'week' && <WeekView citas={sortedCitas} currentDate={currentDate} />}
+      {viewMode === 'month' && <MonthView citas={sortedCitas} currentDate={currentDate} canEdit={canEdit} onContextMenuOpen={openContextMenu} />}
+      {viewMode === 'week' && <WeekView citas={sortedCitas} currentDate={currentDate} onContextMenuOpen={openContextMenu} />}
+
+      {canEdit && contextMenu && (
+        <div
+          className="details-box no-print"
+          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 9999, width: '190px' }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="button-line" style={{ display: 'grid', gap: '6px' }}>
+            <button type="button" className="btn soft" onClick={() => goToContextAction('editar')}>Editar</button>
+            <button type="button" className="btn soft" onClick={() => goToContextAction('historia')}>Historia</button>
+            <button type="button" className="btn soft" onClick={() => goToContextAction('repetir')}>Repetir</button>
+            <button type="button" className="btn danger" onClick={() => goToContextAction('borrar')}>Borrar</button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

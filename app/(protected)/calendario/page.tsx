@@ -215,7 +215,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                 </div>
               </>
             )}
-            <div className="field col-12">
+            <div className="field col-12" id="historia">
               <label>Notas</label>
               <textarea name="notas" defaultValue={getObservaciones(editing)} placeholder="Observaciones clínicas..." />
             </div>
@@ -227,9 +227,16 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           </div>
         </form>
         {editing && (
-          <form className="compact-form" action={repetirCita} style={{ marginTop: '8px' }}>
+          <form id="repetir" className="compact-form" action={repetirCita} style={{ marginTop: '8px' }}>
             <input type="hidden" name="cita_id" value={editing.id} />
             <div className="row">
+              <div className="field col-3">
+                <label>Modo</label>
+                <select name="repeat_mode" defaultValue="count">
+                  <option value="count">Numero de veces</option>
+                  <option value="until">Hasta fecha</option>
+                </select>
+              </div>
               <div className="field col-3">
                 <label>Repetir</label>
                 <select name="frecuencia" defaultValue="semanal">
@@ -254,7 +261,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
         )}
 
         {editing && (
-          <form className="compact-form" action={borrarCita} style={{ marginTop: '8px' }}>
+          <form id="borrar" className="compact-form" action={borrarCita} style={{ marginTop: '8px' }}>
             <input type="hidden" name="cita_id" value={editing.id} />
             <div className="row">
               <div className="field col-4">
