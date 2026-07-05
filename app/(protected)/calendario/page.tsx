@@ -1,7 +1,7 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { requireProfile } from '@/lib/auth/server'
-import { crearCita, editarCita, repetirCita } from './actions'
+import { borrarCita, crearCita, editarCita, repetirCita } from './actions'
 import { CalendarViews } from './calendar-views'
 
 export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string; createDate?: string; createTime?: string; view?: 'list' | 'month' | 'week'; currentDate?: string; new?: string }> }) {
@@ -243,7 +243,29 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                 <input type="number" name="repeticiones" min={1} max={52} defaultValue={4} />
               </div>
               <div className="field col-3">
+                <label>Repetir hasta (opcional)</label>
+                <input type="date" name="repetir_hasta" />
+              </div>
+              <div className="field col-3">
                 <button className="btn soft" type="submit">Crear repeticiones</button>
+              </div>
+            </div>
+          </form>
+        )}
+
+        {editing && (
+          <form className="compact-form" action={borrarCita} style={{ marginTop: '8px' }}>
+            <input type="hidden" name="cita_id" value={editing.id} />
+            <div className="row">
+              <div className="field col-4">
+                <label>Borrar cita</label>
+                <select name="delete_mode" defaultValue="single">
+                  <option value="single">Solo esta cita</option>
+                  <option value="following">Esta y siguientes (mismo patron)</option>
+                </select>
+              </div>
+              <div className="field col-3">
+                <button className="btn danger" type="submit">Borrar</button>
               </div>
             </div>
           </form>

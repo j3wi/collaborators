@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { Fragment, useState, useMemo } from 'react'
 import { centsToEuros } from '@/lib/money'
 
 type Paciente = {
@@ -85,6 +85,33 @@ function getWeekStart(dateStr: string): string {
   const mondayIndex = (date.getDay() + 6) % 7
   date.setDate(date.getDate() - mondayIndex)
   return toISODate(date)
+}
+
+function timeToMinutes(value: string): number | null {
+  const parts = String(value || '').split(':').map(Number)
+  const h = parts[0]
+  const m = parts[1] || 0
+  if (!Number.isFinite(h)) return null
+  return h * 60 + m
+}
+
+function appointmentStartHour(cita: Cita): number {
+  const raw = String(cita.hora_inicio || '').trim()
+  const hour = Number(raw.split(':')[0])
+  return Number.isFinite(hour) ? hour : -1
+}
+
+function appointmentStartQuarterIndex(cita: Cita): number {
+  const minutes = timeToMinutes(cita.hora_inicio)
+  if (minutes === null) return 0
+  return Math.max(0, Math.min(3, Math.floor((minutes % 60) / 15)))
+}
+
+function appointmentDurationSlots(cita: Cita): number {
+  const start = timeToMinutes(cita.hora_inicio)
+  const end = timeToMinutes(cita.hora_fin)
+  if (start === null || end === null || end <= start) return 1
+  return Math.max(1, Math.ceil((end - start) / 15))
 }
 
 function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
@@ -232,87 +259,104 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
 
 function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
   const weekStart = getWeekStart(currentDate)
-  const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
+  const todayIso = toISODate(new Date())
+  const hours = Array.from({ length: 16 }, (_, i) => i + 8)
+  const quarters = [0, 15, 30, 45]
 
-  const citasByDate = new Map<string, Cita[]>()
+  const citasByDay = new Map<string, Cita[]>()
   citas.forEach((cita) => {
     const key = cita.fecha
-    if (!citasByDate.has(key)) citasByDate.set(key, [])
-    citasByDate.get(key)!.push(cita)
+    if (!citasByDay.has(key)) citasByDay.set(key, [])
+    citasByDay.get(key)!.push(cita)
   })
 
-  const hours = Array.from({ length: 16 }, (_, i) => i + 8) // 8:00 - 23:00
+  const days = Array.from({ length: 7 }, (_, i) => {
+    const iso = addDays(weekStart, i)
+    const d = toDate(iso)
+    return {
+      d,
+      iso,
+      isWeekend: i >= 5,
+      isToday: iso === todayIso,
+      citas: (citasByDay.get(iso) || []).slice().sort((a, b) => (a.hora_inicio || '').localeCompare(b.hora_inicio || '')),
+    }
+  })
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ minWidth: '1200px', fontSize: '12px', borderCollapse: 'collapse' }}>
-        <thead>
-          <tr>
-            <th style={{ width: '60px' }}>Hora</th>
-            {days.map((day) => (
-              <th key={day} style={{ width: '140px', textAlign: 'center' }}>
-                <div>{formatDate(day)}</div>
-                <div style={{ fontSize: '11px', color: '#666' }}>{day}</div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {hours.map((hour) => (
-            <tr key={hour}>
-              <td style={{ fontWeight: '600', textAlign: 'center', verticalAlign: 'top' }}>
-                {String(hour).padStart(2, '0')}:00
-              </td>
-              {days.map((day) => {
-                const daysCitas = citasByDate.get(day) || []
-                const dayHourCitas = daysCitas.filter((cita) => {
-                  const startHour = parseInt(cita.hora_inicio.split(':')[0])
-                  return startHour === hour
-                })
+    <div className="week-schedule-wrap">
+      <div className="week-schedule">
+        <div className="week-corner"></div>
+        {days.map((day) => (
+          <div key={day.iso} className={`week-day-slot ${day.isWeekend ? 'weekend' : ''} ${day.isToday ? 'today' : ''}`}>
+            <div className="week-day-title">
+              <span className="week-day-name">{day.d.toLocaleDateString('es-ES', { weekday: 'long' })}</span>
+              <span className="week-day-number">{day.d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })}</span>
+            </div>
+          </div>
+        ))}
 
-                return (
-                  <td
-                    key={`${day}-${hour}`}
-                    style={{
-                      verticalAlign: 'top',
-                      borderRight: '1px solid #e0e0e0',
-                      borderBottom: '1px solid #e0e0e0',
-                      padding: '2px',
-                      height: '60px',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    <a
-                      href={`/calendario?new=1&createDate=${day}&createTime=${String(hour).padStart(2, '0')}:00&view=week&currentDate=${currentDate}`}
-                      className="mini-add"
-                      title="Nueva cita en esta hora"
-                      style={{ marginBottom: '3px' }}
-                    >
-                      +
-                    </a>
-                    {dayHourCitas.map((cita) => (
+        {hours.map((hour) => (
+          <Fragment key={`row-${hour}`}>
+            <div key={`label-${hour}`} className="week-hour-label">{`${String(hour).padStart(2, '0')}:00`}</div>
+            {days.map((day) => {
+              const hourEvents = day.citas.filter((cita) => appointmentStartHour(cita) === hour)
+              return (
+                <div key={`${day.iso}-${hour}`} className={`week-hour-cell ${day.isWeekend ? 'weekend' : ''} ${day.isToday ? 'today' : ''}`}>
+                  {quarters.map((minute) => {
+                    const slotTime = `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+                    return (
+                      <a
+                        key={`${day.iso}-${hour}-${minute}`}
+                        className="week-quarter-slot"
+                        data-time={slotTime}
+                        href={`/calendario?new=1&createDate=${day.iso}&createTime=${slotTime}&view=week&currentDate=${currentDate}`}
+                        title={`Crear cita ${formatDate(day.iso)} ${slotTime}`}
+                        aria-label={`Crear cita ${day.iso} ${slotTime}`}
+                      />
+                    )
+                  })}
+
+                  {hourEvents.map((cita, index) => {
+                    const startQuarter = appointmentStartQuarterIndex(cita)
+                    const durationSlots = appointmentDurationSlots(cita)
+                    const top = startQuarter * 25
+                    const height = Math.max(20, durationSlots * 25)
+                    const safeTotal = Math.max(1, hourEvents.length)
+                    const width = 100 / safeTotal
+                    const left = index * width
+                    const nota = Array.isArray(cita.cita_notas)
+                      ? (cita.cita_notas[0]?.observaciones_clinicas || '')
+                      : (cita.cita_notas?.observaciones_clinicas || '')
+                    const noteLabel = nota ? ' · notas' : ''
+                    const classes = ['week-event-overlay']
+                    if (cita.estado === 'realizada') classes.push('realizada')
+                    if (cita.estado === 'cancelada') classes.push('cancelada')
+                    if (cita.pago_estado === 'pagada') classes.push('pagada')
+
+                    return (
                       <a
                         key={cita.id}
                         href={`/calendario?editId=${cita.id}`}
-                        className={`cal-event ${cita.estado}`}
+                        className={classes.join(' ')}
                         style={{
-                          display: 'block',
-                          marginBottom: '2px',
-                          textDecoration: 'none',
-                          fontSize: '11px',
-                          padding: '2px 4px',
+                          top: `calc(${top}% + 2px)`,
+                          height: `calc(${height}% - 4px)`,
+                          left: `calc(${left}% + 3px)`,
+                          width: `calc(${width}% - 6px)`,
                         }}
+                        title={`${formatDate(cita.fecha)} ${cita.hora_inicio}-${cita.hora_fin} · ${cita.servicios?.nombre || 'Servicio'}${noteLabel} · ${centsToEuros(cita.precio_cents)}`}
                       >
-                        {cita.servicios?.nombre || 'Cita'} ({centsToEuros(cita.precio_cents)})
+                        <span className="cal-event-time">{cita.hora_inicio} - {cita.hora_fin}</span>
+                        <span className="cal-event-text">{(cita.servicios?.nombre || 'Servicio') + noteLabel}</span>
                       </a>
-                    ))}
-                  </td>
-                )
-              })}
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                    )
+                  })}
+                </div>
+              )
+            })}
+          </Fragment>
+        ))}
+      </div>
     </div>
   )
 }
@@ -358,68 +402,45 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
 
   return (
     <>
-      <div className="calendar-toolbar no-print" style={{ marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
-        <a
-          className="btn primary"
-          href={`/calendario?new=1&createDate=${currentDate}&view=${viewMode}&currentDate=${currentDate}`}
-        >
-          Nueva cita
-        </a>
-        <div className="view-toggle">
-          <button
-            className={`btn ${viewMode === 'month' ? 'primary' : 'soft'}`}
-            type="button"
-            onClick={() => setViewMode('month')}
-          >
+      <div className="calendar-toolbar no-print" style={{ marginBottom: '12px', display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {viewMode === 'month' && (
+            <>
+              <button className="btn soft" type="button" onClick={prevMonth}>← Anterior</button>
+              <span style={{ fontSize: '14px', fontWeight: '500', minWidth: '140px', textAlign: 'center' }}>
+                {toDate(currentDate).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
+              </span>
+              <button className="btn soft" type="button" onClick={nextMonth}>Siguiente →</button>
+            </>
+          )}
+
+          {viewMode === 'week' && (
+            <>
+              <button className="btn soft" type="button" onClick={prevWeek}>← Anterior</button>
+              <span style={{ fontSize: '14px', fontWeight: '500', minWidth: '180px', textAlign: 'center' }}>
+                Semana de {getWeekStart(currentDate)}
+              </span>
+              <button className="btn soft" type="button" onClick={nextWeek}>Siguiente →</button>
+            </>
+          )}
+
+          <button className="btn soft" type="button" onClick={today}>Hoy</button>
+        </div>
+
+        <div className="view-toggle" style={{ marginLeft: 'auto', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <a className="btn primary" href={`/calendario?new=1&createDate=${currentDate}&view=${viewMode}&currentDate=${currentDate}`}>
+            Nueva cita
+          </a>
+          <button className={`btn ${viewMode === 'month' ? 'primary' : 'soft'}`} type="button" onClick={() => setViewMode('month')}>
             Vista mensual
           </button>
-          <button
-            className={`btn ${viewMode === 'week' ? 'primary' : 'soft'}`}
-            type="button"
-            onClick={() => setViewMode('week')}
-          >
+          <button className={`btn ${viewMode === 'week' ? 'primary' : 'soft'}`} type="button" onClick={() => setViewMode('week')}>
             Vista semanal
           </button>
-          <button
-            className={`btn ${viewMode === 'list' ? 'primary' : 'soft'}`}
-            type="button"
-            onClick={() => setViewMode('list')}
-          >
+          <button className={`btn ${viewMode === 'list' ? 'primary' : 'soft'}`} type="button" onClick={() => setViewMode('list')}>
             Lista
           </button>
         </div>
-
-        {viewMode === 'month' && (
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button className="btn soft" type="button" onClick={prevMonth}>
-              ← Anterior
-            </button>
-            <span style={{ fontSize: '14px', fontWeight: '500', minWidth: '120px', textAlign: 'center' }}>
-              {toDate(currentDate).toLocaleDateString('es-ES', { month: 'long', year: 'numeric' })}
-            </span>
-            <button className="btn soft" type="button" onClick={nextMonth}>
-              Siguiente →
-            </button>
-          </div>
-        )}
-
-        {viewMode === 'week' && (
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-            <button className="btn soft" type="button" onClick={prevWeek}>
-              ← Anterior
-            </button>
-            <span style={{ fontSize: '14px', fontWeight: '500', minWidth: '180px', textAlign: 'center' }}>
-              Semana de {getWeekStart(currentDate)}
-            </span>
-            <button className="btn soft" type="button" onClick={nextWeek}>
-              Siguiente →
-            </button>
-          </div>
-        )}
-
-        <button className="btn soft" type="button" onClick={today}>
-          Hoy
-        </button>
       </div>
 
       <div className="calendar-legend subtle">

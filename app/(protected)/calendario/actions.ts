@@ -137,6 +137,7 @@ export async function borrarCita(formData: FormData) {
   await requireProfile()
   const supabase: any = await createClient()
   const citaId = String(formData.get('cita_id') || '')
+  const deleteMode = String(formData.get('delete_mode') || 'single')
   if (!citaId) throw new Error('Cita no válida')
 
   // Validar que no esté en liquidación pagada
@@ -156,12 +157,79 @@ export async function borrarCita(formData: FormData) {
     if (liquidacion?.estado === 'pagada') throw new Error('No puedes borrar una cita en una liquidación pagada')
   }
 
-  // Eliminar relaciones de pacientes
-  await supabase.from('cita_pacientes').delete().eq('cita_id', citaId)
+  if (deleteMode !== 'following') {
+    // Eliminar relaciones de pacientes
+    await supabase.from('cita_pacientes').delete().eq('cita_id', citaId)
 
-  // Eliminar cita
-  const { error: deleteError } = await supabase.from('citas').delete().eq('id', citaId)
-  if (deleteError) throw new Error(deleteError.message)
+    // Eliminar cita
+    const { error: deleteError } = await supabase.from('citas').delete().eq('id', citaId)
+    if (deleteError) throw new Error(deleteError.message)
+  } else {
+    // Borrar esta y siguientes del mismo patron (mismo dia semana + hora + colaborador + paciente compartido)
+    const { data: baseCita, error: baseError } = await supabase
+      .from('citas')
+      .select('id,fecha,hora_inicio,colaborador_id,servicio_id')
+      .eq('id', citaId)
+      .single()
+    if (baseError || !baseCita) throw new Error(baseError?.message || 'No se encontro cita base')
+
+    const baseWeekday = new Date(`${baseCita.fecha}T12:00:00`).getDay()
+    const { data: basePatientRows } = await supabase.from('cita_pacientes').select('paciente_id').eq('cita_id', citaId)
+    const basePatientIds = new Set((basePatientRows ?? []).map((row: any) => row.paciente_id).filter(Boolean))
+
+    const { data: candidates } = await supabase
+      .from('citas')
+      .select('id,fecha,hora_inicio,colaborador_id,servicio_id,liquidacion_id')
+      .gte('fecha', baseCita.fecha)
+      .eq('hora_inicio', baseCita.hora_inicio)
+      .eq('colaborador_id', baseCita.colaborador_id)
+
+    const byWeekday = (candidates ?? []).filter((c: any) => {
+      const weekday = new Date(`${c.fecha}T12:00:00`).getDay()
+      return weekday === baseWeekday
+    })
+
+    const candidateIds = byWeekday.map((c: any) => c.id)
+    let candidatesByPatient: any[] = byWeekday
+    if (candidateIds.length && basePatientIds.size) {
+      const { data: cpRows } = await supabase
+        .from('cita_pacientes')
+        .select('cita_id,paciente_id')
+        .in('cita_id', candidateIds)
+
+      const patientsByCita = new Map<string, Set<string>>()
+      ;(cpRows ?? []).forEach((row: any) => {
+        if (!patientsByCita.has(row.cita_id)) patientsByCita.set(row.cita_id, new Set())
+        patientsByCita.get(row.cita_id)?.add(row.paciente_id)
+      })
+
+      candidatesByPatient = byWeekday.filter((c: any) => {
+        const set = patientsByCita.get(c.id) ?? new Set<string>()
+        for (const pid of set) {
+          if (basePatientIds.has(pid)) return true
+        }
+        return false
+      })
+    }
+
+    const liquidacionIds = [...new Set(candidatesByPatient.map((c: any) => c.liquidacion_id).filter(Boolean))]
+    const paidLiquidaciones = new Set<string>()
+    if (liquidacionIds.length) {
+      const { data: liqRows } = await supabase.from('liquidaciones').select('id,estado').in('id', liquidacionIds)
+      ;(liqRows ?? []).forEach((l: any) => { if (l.estado === 'pagada') paidLiquidaciones.add(l.id) })
+    }
+
+    const deletableIds = candidatesByPatient
+      .filter((c: any) => !c.liquidacion_id || !paidLiquidaciones.has(c.liquidacion_id))
+      .map((c: any) => c.id)
+
+    if (deletableIds.length) {
+      await supabase.from('cita_pacientes').delete().in('cita_id', deletableIds)
+      await supabase.from('cita_notas').delete().in('cita_id', deletableIds)
+      const { error: deleteSeriesError } = await supabase.from('citas').delete().in('id', deletableIds)
+      if (deleteSeriesError) throw new Error(deleteSeriesError.message)
+    }
+  }
 
   revalidatePath('/calendario')
   revalidatePath('/dashboard')
@@ -174,6 +242,7 @@ export async function repetirCita(formData: FormData) {
   const citaId = String(formData.get('cita_id') || '')
   const frecuencia = String(formData.get('frecuencia') || 'semanal')
   const repeticiones = Math.max(1, Math.min(52, Number(formData.get('repeticiones') || 4)))
+  const repetirHasta = String(formData.get('repetir_hasta') || '')
   if (!citaId) throw new Error('Cita no valida')
 
   const { data: cita, error: citaError } = await supabase
@@ -201,6 +270,8 @@ export async function repetirCita(formData: FormData) {
         : frecuencia === 'mensual'
           ? addMonthsISO(cita.fecha, i)
           : addDaysISO(cita.fecha, i * 7)
+
+    if (repetirHasta && fechaNueva > repetirHasta) break
 
     const { data: nuevaCita, error: nuevaError } = await supabase
       .from('citas')
