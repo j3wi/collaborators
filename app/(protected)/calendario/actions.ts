@@ -4,6 +4,20 @@ import { createClient } from '@/utils/supabase/server'
 import { requireProfile } from '@/lib/auth/server'
 import { eurosToCents } from '@/lib/money'
 
+function addDaysISO(baseDate: string, days: number): string {
+  const [year, month, day] = String(baseDate).split('-').map(Number)
+  const date = new Date(year, (month || 1) - 1, day || 1)
+  date.setDate(date.getDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+function addMonthsISO(baseDate: string, months: number): string {
+  const [year, month, day] = String(baseDate).split('-').map(Number)
+  const date = new Date(year, (month || 1) - 1, day || 1)
+  date.setMonth(date.getMonth() + months)
+  return date.toISOString().slice(0, 10)
+}
+
 export async function crearCita(formData: FormData) {
   const profile = await requireProfile()
   const supabase: any = await createClient()
@@ -148,6 +162,84 @@ export async function borrarCita(formData: FormData) {
   // Eliminar cita
   const { error: deleteError } = await supabase.from('citas').delete().eq('id', citaId)
   if (deleteError) throw new Error(deleteError.message)
+
+  revalidatePath('/calendario')
+  revalidatePath('/dashboard')
+}
+
+export async function repetirCita(formData: FormData) {
+  const profile = await requireProfile()
+  const supabase: any = await createClient()
+
+  const citaId = String(formData.get('cita_id') || '')
+  const frecuencia = String(formData.get('frecuencia') || 'semanal')
+  const repeticiones = Math.max(1, Math.min(52, Number(formData.get('repeticiones') || 4)))
+  if (!citaId) throw new Error('Cita no valida')
+
+  const { data: cita, error: citaError } = await supabase
+    .from('citas')
+    .select('id,fecha,hora_inicio,hora_fin,servicio_id,colaborador_id,supervisor_id,precio_cents,reminder_enabled,reminder_days_before')
+    .eq('id', citaId)
+    .single()
+  if (citaError || !cita) throw new Error(citaError?.message || 'No se encontro la cita')
+
+  const { data: pacientesRows } = await supabase
+    .from('cita_pacientes')
+    .select('paciente_id')
+    .eq('cita_id', citaId)
+
+  const { data: notasRow } = await supabase
+    .from('cita_notas')
+    .select('observaciones_clinicas,acuerdos_tareas,incidencias')
+    .eq('cita_id', citaId)
+    .maybeSingle()
+
+  for (let i = 1; i <= repeticiones; i += 1) {
+    const fechaNueva =
+      frecuencia === 'diaria'
+        ? addDaysISO(cita.fecha, i)
+        : frecuencia === 'mensual'
+          ? addMonthsISO(cita.fecha, i)
+          : addDaysISO(cita.fecha, i * 7)
+
+    const { data: nuevaCita, error: nuevaError } = await supabase
+      .from('citas')
+      .insert({
+        fecha: fechaNueva,
+        hora_inicio: cita.hora_inicio,
+        hora_fin: cita.hora_fin,
+        servicio_id: cita.servicio_id,
+        colaborador_id: cita.colaborador_id,
+        supervisor_id: cita.supervisor_id,
+        precio_cents: cita.precio_cents,
+        estado: 'programada',
+        pago_estado: 'pendiente',
+        reminder_enabled: cita.reminder_enabled,
+        reminder_days_before: cita.reminder_days_before,
+        created_by: profile.id,
+      } as any)
+      .select('id')
+      .single()
+    if (nuevaError) throw new Error(nuevaError.message)
+
+    if (nuevaCita && (pacientesRows ?? []).length > 0) {
+      const rows = (pacientesRows ?? []).map((row: any) => ({ cita_id: nuevaCita.id, paciente_id: row.paciente_id }))
+      const { error: pacientesError } = await supabase.from('cita_pacientes').insert(rows as any)
+      if (pacientesError) throw new Error(pacientesError.message)
+    }
+
+    if (nuevaCita && notasRow) {
+      const { error: notasError } = await supabase.from('cita_notas').upsert({
+        cita_id: nuevaCita.id,
+        observaciones_clinicas: notasRow.observaciones_clinicas || '',
+        acuerdos_tareas: notasRow.acuerdos_tareas || '',
+        incidencias: notasRow.incidencias || '',
+        last_edited_by: profile.id,
+        last_edited_at: new Date().toISOString(),
+      } as any)
+      if (notasError) throw new Error(notasError.message)
+    }
+  }
 
   revalidatePath('/calendario')
   revalidatePath('/dashboard')

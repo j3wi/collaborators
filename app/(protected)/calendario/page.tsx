@@ -1,15 +1,19 @@
 import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { requireProfile } from '@/lib/auth/server'
-import { crearCita, editarCita } from './actions'
+import { crearCita, editarCita, repetirCita } from './actions'
 import { CalendarViews } from './calendar-views'
 
-export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string }> }) {
+export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string; createDate?: string; createTime?: string; view?: 'list' | 'month' | 'week'; currentDate?: string }> }) {
   const profile: any = await requireProfile()
   const supabase = await createClient()
   const admin = createAdminClient()
   const params = await searchParams
   const editId = params.editId || ''
+  const createDate = params.createDate || ''
+  const createTime = params.createTime || ''
+  const initialView = params.view || 'list'
+  const initialDate = params.currentDate || createDate || ''
 
   const isColaborador = profile.role === 'colaborador'
   const canEdit = profile.role === 'admin' || profile.role === 'supervisor' || isColaborador
@@ -102,6 +106,13 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
     return ((cents || 0) / 100).toFixed(2).replace('.', ',')
   }
 
+  function addOneHour(time: string): string {
+    const [h, m] = String(time || '10:00').split(':').map(Number)
+    const hour = Number.isFinite(h) ? h : 10
+    const minute = Number.isFinite(m) ? m : 0
+    return `${String((hour + 1) % 24).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  }
+
   function getObservaciones(cita: any): string {
     if (!cita) return ''
     if (Array.isArray(cita.cita_notas)) return cita.cita_notas[0]?.observaciones_clinicas || ''
@@ -109,6 +120,9 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   }
 
   const pacientesSeleccionados = editing ? (editing.cita_pacientes || []).map((row: any) => row.pacientes?.id).filter(Boolean) : []
+  const defaultFecha = editing?.fecha || createDate || today
+  const defaultInicio = editing?.hora_inicio || createTime || '10:00'
+  const defaultFin = editing?.hora_fin || addOneHour(defaultInicio)
 
   return (
     <>
@@ -123,15 +137,15 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           <div className="row">
             <div className="field col-2">
               <label>Fecha</label>
-              <input name="fecha" type="date" defaultValue={editing?.fecha || today} required disabled={isLockedBecausePaid} />
+              <input name="fecha" type="date" defaultValue={defaultFecha} required disabled={isLockedBecausePaid} />
             </div>
             <div className="field col-2">
               <label>Inicio</label>
-              <input name="hora_inicio" type="time" defaultValue={editing?.hora_inicio || '10:00'} required disabled={isLockedBecausePaid} />
+              <input name="hora_inicio" type="time" defaultValue={defaultInicio} required disabled={isLockedBecausePaid} />
             </div>
             <div className="field col-2">
               <label>Fin</label>
-              <input name="hora_fin" type="time" defaultValue={editing?.hora_fin || '11:00'} required disabled={isLockedBecausePaid} />
+              <input name="hora_fin" type="time" defaultValue={defaultFin} required disabled={isLockedBecausePaid} />
             </div>
             <div className="field col-3">
               <label>Servicio</label>
@@ -209,6 +223,28 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
             </div>
           </div>
         </form>
+        {editing && (
+          <form className="compact-form" action={repetirCita} style={{ marginTop: '8px' }}>
+            <input type="hidden" name="cita_id" value={editing.id} />
+            <div className="row">
+              <div className="field col-3">
+                <label>Repetir</label>
+                <select name="frecuencia" defaultValue="semanal">
+                  <option value="diaria">Diaria</option>
+                  <option value="semanal">Semanal</option>
+                  <option value="mensual">Mensual</option>
+                </select>
+              </div>
+              <div className="field col-2">
+                <label>Veces</label>
+                <input type="number" name="repeticiones" min={1} max={52} defaultValue={4} />
+              </div>
+              <div className="field col-3">
+                <button className="btn soft" type="submit">Crear repeticiones</button>
+              </div>
+            </div>
+          </form>
+        )}
       </section>
 
       <section className="panel">
@@ -216,7 +252,12 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           <h3>Citas</h3>
           <span className="tag">{allCitas.length}</span>
         </div>
-        <CalendarViews citas={allCitas as any} canEdit={canEdit} />
+        <CalendarViews
+          citas={allCitas as any}
+          canEdit={canEdit}
+          initialView={initialView}
+          initialDate={initialDate}
+        />
       </section>
     </>
   )

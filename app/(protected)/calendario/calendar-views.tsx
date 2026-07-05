@@ -39,26 +39,27 @@ type Cita = {
 type CalendarViewsProps = {
   citas: Cita[]
   canEdit: boolean
+  initialView?: ViewMode
+  initialDate?: string
 }
 
 type ViewMode = 'list' | 'month' | 'week'
 
 function toDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
-  return new Date(year, month - 1, day)
+  return new Date(year, month - 1, day, 12, 0, 0)
 }
 
 function toISODate(date: Date): string {
-  return date.toISOString().slice(0, 10)
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 
 function formatDate(dateStr: string): string {
   const date = toDate(dateStr)
   return date.toLocaleDateString('es-ES', { weekday: 'short', month: 'short', day: 'numeric' })
-}
-
-function getDayOfWeek(dateStr: string): number {
-  return toDate(dateStr).getDay()
 }
 
 function addDays(dateStr: string, days: number): string {
@@ -81,9 +82,8 @@ function getMonthStart(dateStr: string): string {
 
 function getWeekStart(dateStr: string): string {
   const date = toDate(dateStr)
-  const day = date.getDay()
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-  date.setDate(diff)
+  const mondayIndex = (date.getDay() + 6) % 7
+  date.setDate(date.getDate() - mondayIndex)
   return toISODate(date)
 }
 
@@ -159,16 +159,16 @@ function ListaView({ citas, canEdit }: { citas: Cita[]; canEdit: boolean }) {
   )
 }
 
-function MonthView({ citas, canEdit, currentDate, onDateSelect }: { citas: Cita[]; canEdit: boolean; currentDate: string; onDateSelect: (date: string) => void }) {
+function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
   const monthStart = getMonthStart(currentDate)
   const date = toDate(monthStart)
   const year = date.getFullYear()
   const month = date.getMonth()
 
   const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
   const startDate = new Date(firstDay)
-  startDate.setDate(startDate.getDate() - firstDay.getDay() + (firstDay.getDay() === 0 ? -6 : 1))
+  const mondayIndex = (firstDay.getDay() + 6) % 7
+  startDate.setDate(startDate.getDate() - mondayIndex)
 
   const citasByDate = new Map<string, Cita[]>()
   citas.forEach((cita) => {
@@ -177,15 +177,14 @@ function MonthView({ citas, canEdit, currentDate, onDateSelect }: { citas: Cita[
     citasByDate.get(key)!.push(cita)
   })
 
-  const days: (Date | null)[] = []
+  const days: Date[] = []
   const current = new Date(startDate)
   while (days.length < 42) {
-    if (current.getMonth() !== month && days.length >= 7) break
     days.push(new Date(current))
     current.setDate(current.getDate() + 1)
   }
 
-  const weekDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sab']
+  const weekDays = ['Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab', 'Dom']
 
   return (
     <div>
@@ -196,7 +195,6 @@ function MonthView({ citas, canEdit, currentDate, onDateSelect }: { citas: Cita[
           </div>
         ))}
         {days.map((day, idx) => {
-          if (!day) return <div key={`empty-${idx}`} className="month-day out"></div>
           const dateStr = toISODate(day)
           const daysCitas = citasByDate.get(dateStr) || []
           const isCurrentMonth = day.getMonth() === month
@@ -206,6 +204,7 @@ function MonthView({ citas, canEdit, currentDate, onDateSelect }: { citas: Cita[
             <div key={dateStr} className={`month-day ${!isCurrentMonth ? 'out' : ''} ${isToday ? 'today' : ''}`}>
               <div className="day-head">
                 <span className="day-number">{day.getDate()}</span>
+                <a href={`/calendario?createDate=${dateStr}&view=month&currentDate=${currentDate}`} className="mini-add" title="Nueva cita este dia">+</a>
               </div>
               <div className="day-events">
                 {daysCitas.slice(0, 3).map((cita) => (
@@ -231,7 +230,7 @@ function MonthView({ citas, canEdit, currentDate, onDateSelect }: { citas: Cita[
   )
 }
 
-function WeekView({ citas, canEdit, currentDate }: { citas: Cita[]; canEdit: boolean; currentDate: string }) {
+function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }) {
   const weekStart = getWeekStart(currentDate)
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i))
 
@@ -283,6 +282,14 @@ function WeekView({ citas, canEdit, currentDate }: { citas: Cita[]; canEdit: boo
                       overflow: 'hidden',
                     }}
                   >
+                    <a
+                      href={`/calendario?createDate=${day}&createTime=${String(hour).padStart(2, '0')}:00&view=week&currentDate=${currentDate}`}
+                      className="mini-add"
+                      title="Nueva cita en esta hora"
+                      style={{ marginBottom: '3px' }}
+                    >
+                      +
+                    </a>
                     {dayHourCitas.map((cita) => (
                       <a
                         key={cita.id}
@@ -310,9 +317,10 @@ function WeekView({ citas, canEdit, currentDate }: { citas: Cita[]; canEdit: boo
   )
 }
 
-export function CalendarViews({ citas, canEdit }: CalendarViewsProps) {
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
-  const [currentDate, setCurrentDate] = useState(() => toISODate(new Date()))
+export function CalendarViews({ citas, canEdit, initialView = 'list', initialDate = '' }: CalendarViewsProps) {
+  const safeInitialView: ViewMode = initialView === 'month' || initialView === 'week' || initialView === 'list' ? initialView : 'list'
+  const [viewMode, setViewMode] = useState<ViewMode>(safeInitialView)
+  const [currentDate, setCurrentDate] = useState(() => initialDate || toISODate(new Date()))
 
   const sortedCitas = useMemo(() => {
     return [...citas].sort((a, b) => {
@@ -324,12 +332,14 @@ export function CalendarViews({ citas, canEdit }: CalendarViewsProps) {
 
   const nextMonth = () => {
     const date = toDate(currentDate)
+    date.setDate(1)
     date.setMonth(date.getMonth() + 1)
     setCurrentDate(toISODate(date))
   }
 
   const prevMonth = () => {
     const date = toDate(currentDate)
+    date.setDate(1)
     date.setMonth(date.getMonth() - 1)
     setCurrentDate(toISODate(date))
   }
@@ -349,6 +359,12 @@ export function CalendarViews({ citas, canEdit }: CalendarViewsProps) {
   return (
     <>
       <div className="calendar-toolbar no-print" style={{ marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <a
+          className="btn primary"
+          href={`/calendario?createDate=${currentDate}&view=${viewMode}&currentDate=${currentDate}`}
+        >
+          Nueva cita
+        </a>
         <div className="view-toggle">
           <button
             className={`btn ${viewMode === 'list' ? 'primary' : 'soft'}`}
@@ -422,8 +438,8 @@ export function CalendarViews({ citas, canEdit }: CalendarViewsProps) {
       </div>
 
       {viewMode === 'list' && <ListaView citas={sortedCitas} canEdit={canEdit} />}
-      {viewMode === 'month' && <MonthView citas={sortedCitas} canEdit={canEdit} currentDate={currentDate} onDateSelect={setCurrentDate} />}
-      {viewMode === 'week' && <WeekView citas={sortedCitas} canEdit={canEdit} currentDate={currentDate} />}
+      {viewMode === 'month' && <MonthView citas={sortedCitas} currentDate={currentDate} />}
+      {viewMode === 'week' && <WeekView citas={sortedCitas} currentDate={currentDate} />}
     </>
   )
 }
