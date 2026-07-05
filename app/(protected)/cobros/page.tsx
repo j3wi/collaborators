@@ -12,7 +12,7 @@ export default async function CobrosPage() {
 
   let citasQuery = supabase
     .from('citas')
-    .select('id,fecha,hora_inicio,hora_fin,precio_cents,estado,pago_estado,liquidacion_id,colaborador_id,supervisor_id,servicios(nombre),colaboradores(nombre,apellidos),supervisores(nombre,apellidos),cita_pacientes(paciente_id)')
+    .select('id,fecha,hora_inicio,hora_fin,precio_cents,estado,pago_estado,liquidacion_id,colaborador_id,supervisor_id,servicios(nombre),colaboradores(nombre,apellidos),supervisores(nombre,apellidos),cita_pacientes(pacientes(id,codigo,nombre,apellidos))')
     .order('fecha')
     .order('hora_inicio')
 
@@ -53,7 +53,15 @@ export default async function CobrosPage() {
     servicio: cita.servicios?.nombre || '',
     colaboradorNombre: cita.colaboradores ? `${cita.colaboradores.nombre || ''} ${cita.colaboradores.apellidos || ''}`.trim() : '',
     supervisorNombre: cita.supervisores ? `${cita.supervisores.nombre || ''} ${cita.supervisores.apellidos || ''}`.trim() : '',
-    participantes: (cita.cita_pacientes || []).length,
+    pacientes: (cita.cita_pacientes || [])
+      .map((row: any) => row.pacientes)
+      .filter(Boolean)
+      .map((paciente: any) => ({
+        id: paciente.id || '',
+        codigo: paciente.codigo || '',
+        nombre: paciente.nombre || '',
+        apellidos: paciente.apellidos || '',
+      })),
   }))
 
   const liquidacionesRows = (liquidaciones ?? []).map((liquidacion: any) => ({

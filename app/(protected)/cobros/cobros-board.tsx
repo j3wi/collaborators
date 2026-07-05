@@ -19,7 +19,12 @@ type CitaRow = {
   servicio: string
   colaboradorNombre: string
   supervisorNombre: string
-  participantes: number
+  pacientes: Array<{
+    id: string
+    codigo: string
+    nombre: string
+    apellidos: string
+  }>
 }
 
 type LiquidacionRow = {
@@ -154,7 +159,7 @@ export function CobrosBoard({
 
   const totals = useMemo(() => {
     const calc = calcLiquidacion(baseRows.map((row) => row.precioCents), 15)
-    const participantes = baseRows.reduce((sum, row) => sum + row.participantes, 0)
+    const participantes = baseRows.reduce((sum, row) => sum + row.pacientes.length, 0)
     return {
       count: baseRows.length,
       participants: participantes,
@@ -170,7 +175,7 @@ export function CobrosBoard({
       const key = row.colaboradorId || 'sin_colaborador'
       const current = map.get(key) || { nombre: row.colaboradorNombre || 'Sin colaborador', citas: 0, participantes: 0, subtotal: 0 }
       current.citas += 1
-      current.participantes += row.participantes
+      current.participantes += row.pacientes.length
       current.subtotal += row.precioCents
       map.set(key, current)
     })
@@ -387,7 +392,7 @@ export function CobrosBoard({
               <tr>
                 <th className="center no-print">Sel.</th>
                 <th>Fecha</th>
-                <th>Participantes</th>
+                <th>Pacientes</th>
                 <th>Servicio</th>
                 <th>Colaborador</th>
                 <th>Supervisor</th>
@@ -409,7 +414,10 @@ export function CobrosBoard({
                       />
                     </td>
                     <td>{row.fecha}<br /><span className="subtle">{row.horaInicio}-{row.horaFin}</span></td>
-                    <td>{row.participantes}</td>
+                    <td>
+                      {row.pacientes.length === 0 ? '—' : row.pacientes.map((p) => p.codigo || `${p.nombre} ${p.apellidos}`.trim() || p.id).join(', ')}<br />
+                      <span className="subtle">{row.pacientes.length} participante/s</span>
+                    </td>
                     <td>{row.servicio || '—'}</td>
                     <td>{row.colaboradorNombre || '—'}</td>
                     <td>{row.supervisorNombre || '—'}</td>
