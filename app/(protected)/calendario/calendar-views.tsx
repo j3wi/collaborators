@@ -204,7 +204,7 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
             <div key={dateStr} className={`month-day ${!isCurrentMonth ? 'out' : ''} ${isToday ? 'today' : ''}`}>
               <div className="day-head">
                 <span className="day-number">{day.getDate()}</span>
-                <a href={`/calendario?createDate=${dateStr}&view=month&currentDate=${currentDate}`} className="mini-add" title="Nueva cita este dia">+</a>
+                <a href={`/calendario?new=1&createDate=${dateStr}&view=month&currentDate=${currentDate}`} className="mini-add" title="Nueva cita este dia">+</a>
               </div>
               <div className="day-events">
                 {daysCitas.slice(0, 3).map((cita) => (
@@ -283,7 +283,7 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                     }}
                   >
                     <a
-                      href={`/calendario?createDate=${day}&createTime=${String(hour).padStart(2, '0')}:00&view=week&currentDate=${currentDate}`}
+                      href={`/calendario?new=1&createDate=${day}&createTime=${String(hour).padStart(2, '0')}:00&view=week&currentDate=${currentDate}`}
                       className="mini-add"
                       title="Nueva cita en esta hora"
                       style={{ marginBottom: '3px' }}
@@ -361,31 +361,31 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
       <div className="calendar-toolbar no-print" style={{ marginBottom: '12px', display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap' }}>
         <a
           className="btn primary"
-          href={`/calendario?createDate=${currentDate}&view=${viewMode}&currentDate=${currentDate}`}
+          href={`/calendario?new=1&createDate=${currentDate}&view=${viewMode}&currentDate=${currentDate}`}
         >
           Nueva cita
         </a>
         <div className="view-toggle">
           <button
-            className={`btn ${viewMode === 'list' ? 'primary' : 'soft'}`}
-            type="button"
-            onClick={() => setViewMode('list')}
-          >
-            Lista
-          </button>
-          <button
             className={`btn ${viewMode === 'month' ? 'primary' : 'soft'}`}
             type="button"
             onClick={() => setViewMode('month')}
           >
-            Mes
+            Vista mensual
           </button>
           <button
             className={`btn ${viewMode === 'week' ? 'primary' : 'soft'}`}
             type="button"
             onClick={() => setViewMode('week')}
           >
-            Semana
+            Vista semanal
+          </button>
+          <button
+            className={`btn ${viewMode === 'list' ? 'primary' : 'soft'}`}
+            type="button"
+            onClick={() => setViewMode('list')}
+          >
+            Lista
           </button>
         </div>
 

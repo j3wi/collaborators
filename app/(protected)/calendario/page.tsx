@@ -4,7 +4,7 @@ import { requireProfile } from '@/lib/auth/server'
 import { crearCita, editarCita, repetirCita } from './actions'
 import { CalendarViews } from './calendar-views'
 
-export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string; createDate?: string; createTime?: string; view?: 'list' | 'month' | 'week'; currentDate?: string }> }) {
+export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string; createDate?: string; createTime?: string; view?: 'list' | 'month' | 'week'; currentDate?: string; new?: string }> }) {
   const profile: any = await requireProfile()
   const supabase = await createClient()
   const admin = createAdminClient()
@@ -12,6 +12,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const editId = params.editId || ''
   const createDate = params.createDate || ''
   const createTime = params.createTime || ''
+  const newMode = params.new || ''
   const initialView = params.view || 'list'
   const initialDate = params.currentDate || createDate || ''
 
@@ -123,13 +124,15 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const defaultFecha = editing?.fecha || createDate || today
   const defaultInicio = editing?.hora_inicio || createTime || '10:00'
   const defaultFin = editing?.hora_fin || addOneHour(defaultInicio)
+  const showCitaForm = Boolean(editing || createDate || createTime || newMode === '1')
 
   return (
     <>
-      <section className="panel">
+      {showCitaForm && <section className="panel">
         <div className="panel-head">
           <h3>{editing ? `Editar cita - ${editing.fecha}` : 'Nueva cita'}</h3>
           {editing && <a href="/calendario" className="btn soft">Cancelar</a>}
+          {!editing && <a href={`/calendario?view=${initialView}&currentDate=${initialDate || today}`} className="btn soft">Cerrar</a>}
         </div>
         {isLockedBecausePaid && <div className="note">⚠️ Cita bloqueada (liquidación pagada)</div>}
         <form className="compact-form" action={editing ? editarCita : crearCita}>
@@ -245,7 +248,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
             </div>
           </form>
         )}
-      </section>
+      </section>}
 
       <section className="panel">
         <div className="panel-head">
