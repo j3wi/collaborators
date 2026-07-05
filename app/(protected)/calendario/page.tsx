@@ -3,6 +3,7 @@ import { createAdminClient } from '@/utils/supabase/admin'
 import { requireProfile } from '@/lib/auth/server'
 import { borrarCita, crearCita, editarCita, repetirCita } from './actions'
 import { CalendarViews } from './calendar-views'
+import { CitaForm } from './cita-form'
 
 export default async function CalendarioPage({ searchParams }: { searchParams: Promise<{ editId?: string; createDate?: string; createTime?: string; view?: 'list' | 'month' | 'week'; currentDate?: string; new?: string }> }) {
   const profile: any = await requireProfile()
@@ -120,6 +121,18 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
     return cita.cita_notas?.observaciones_clinicas || ''
   }
 
+  function getAcuerdos(cita: any): string {
+    if (!cita) return ''
+    if (Array.isArray(cita.cita_notas)) return cita.cita_notas[0]?.acuerdos_tareas || ''
+    return cita.cita_notas?.acuerdos_tareas || ''
+  }
+
+  function getIncidencias(cita: any): string {
+    if (!cita) return ''
+    if (Array.isArray(cita.cita_notas)) return cita.cita_notas[0]?.incidencias || ''
+    return cita.cita_notas?.incidencias || ''
+  }
+
   const pacientesSeleccionados = editing ? (editing.cita_pacientes || []).map((row: any) => row.pacientes?.id).filter(Boolean) : []
   const defaultFecha = editing?.fecha || createDate || today
   const defaultInicio = editing?.hora_inicio || createTime || '10:00'
@@ -135,97 +148,35 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
           {!editing && <a href={`/calendario?view=${initialView}&currentDate=${initialDate || today}`} className="btn soft">Cerrar</a>}
         </div>
         {isLockedBecausePaid && <div className="note">⚠️ Cita bloqueada (liquidación pagada)</div>}
-        <form className="compact-form" action={editing ? editarCita : crearCita}>
-          {editing && <input type="hidden" name="cita_id" value={editing.id} />}
-          <div className="row">
-            <div className="field col-2">
-              <label>Fecha</label>
-              <input name="fecha" type="date" defaultValue={defaultFecha} required disabled={isLockedBecausePaid} />
-            </div>
-            <div className="field col-2">
-              <label>Inicio</label>
-              <input name="hora_inicio" type="time" defaultValue={defaultInicio} required disabled={isLockedBecausePaid} />
-            </div>
-            <div className="field col-2">
-              <label>Fin</label>
-              <input name="hora_fin" type="time" defaultValue={defaultFin} required disabled={isLockedBecausePaid} />
-            </div>
-            <div className="field col-3">
-              <label>Servicio</label>
-              <select name="servicio_id" required disabled={isLockedBecausePaid} defaultValue={editing?.servicios?.id || ''}>
-                <option value="">Elegir</option>
-                {servicios.map((s: any) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-              </select>
-            </div>
-            <div className="field col-3">
-              <label>Precio (€)</label>
-              <input name="precio" inputMode="decimal" defaultValue={editing ? euroInput(editing.precio_cents) : '0,00'} required disabled={isLockedBecausePaid} />
-            </div>
-            <div className="field col-4">
-              <label>Pacientes</label>
-              <select name="paciente_ids" multiple size={3} disabled={isLockedBecausePaid} defaultValue={pacientesSeleccionados}>
-                {pacientes.map((p: any) => (
-                  <option key={p.id} value={p.id}>
-                    {p.codigo} · {p.nombre}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field col-3">
-              <label>Colaborador</label>
-              <select name="colaborador_id" required disabled={isColaborador || isLockedBecausePaid} defaultValue={editing?.colaborador_id || (isColaborador ? profile.colaborador_id : '')}>
-                {!isColaborador && <option value="">Elegir</option>}
-                {colaboradores.map((c: any) => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-              </select>
-              {isColaborador && <input type="hidden" name="colaborador_id" value={profile.colaborador_id} />}
-            </div>
-            <div className="field col-3">
-              <label>Supervisor</label>
-              <select name="supervisor_id" disabled={isLockedBecausePaid} defaultValue={editing?.supervisor_id || ''}>
-                <option value="">Sin supervisor</option>
-                {supervisores.map((s: any) => <option key={s.id} value={s.id}>{s.nombre}</option>)}
-              </select>
-            </div>
-            <div className="field col-2">
-              <label>
-                <input type="checkbox" name="reminder_enabled" defaultChecked={editing?.reminder_enabled ?? true} /> Recordatorio
-              </label>
-            </div>
-            <div className="field col-2">
-              <label>Días antes</label>
-              <input name="reminder_days_before" type="number" min={0} max={60} defaultValue={editing?.reminder_days_before || 5} />
-            </div>
-            {editing && (
-              <>
-                <div className="field col-3">
-                  <label>Estado</label>
-                  <select name="estado" defaultValue={editing?.estado || 'programada'}>
-                    <option value="programada">Programada</option>
-                    <option value="confirmada">Confirmada</option>
-                    <option value="realizada">Realizada</option>
-                    <option value="cancelada">Cancelada</option>
-                  </select>
-                </div>
-                <div className="field col-3">
-                  <label>Pago</label>
-                  <select name="pago_estado" defaultValue={editing?.pago_estado || 'pendiente'}>
-                    <option value="pendiente">Pendiente</option>
-                    <option value="pagada">Pagada</option>
-                  </select>
-                </div>
-              </>
-            )}
-            <div className="field col-12" id="historia">
-              <label>Notas</label>
-              <textarea name="notas" defaultValue={getObservaciones(editing)} placeholder="Observaciones clínicas..." />
-            </div>
-            <div className="field col-2">
-              <button className="btn primary" type="submit">
-                {editing ? 'Actualizar' : 'Guardar'}
-              </button>
-            </div>
-          </div>
-        </form>
+        <CitaForm
+          action={editing ? editarCita : crearCita}
+          isEditing={Boolean(editing)}
+          editingId={editing?.id || ''}
+          isLockedBecausePaid={isLockedBecausePaid}
+          isColaborador={isColaborador}
+          profileColaboradorId={String(profile.colaborador_id || '')}
+          servicios={servicios}
+          pacientes={pacientes}
+          colaboradores={colaboradores}
+          supervisores={supervisores}
+          defaults={{
+            fecha: defaultFecha,
+            horaInicio: defaultInicio,
+            horaFin: defaultFin,
+            servicioId: editing?.servicios?.id || '',
+            precio: editing ? euroInput(editing.precio_cents) : '0,00',
+            pacienteIds: pacientesSeleccionados,
+            colaboradorId: editing?.colaborador_id || (isColaborador ? String(profile.colaborador_id || '') : ''),
+            supervisorId: editing?.supervisor_id || '',
+            reminderEnabled: editing?.reminder_enabled ?? true,
+            reminderDaysBefore: editing?.reminder_days_before || 5,
+            estado: editing?.estado || 'programada',
+            pagoEstado: editing?.pago_estado || 'pendiente',
+            observaciones: getObservaciones(editing),
+            acuerdos: getAcuerdos(editing),
+            incidencias: getIncidencias(editing),
+          }}
+        />
         {editing && (
           <form id="repetir" className="compact-form" action={repetirCita} style={{ marginTop: '8px' }}>
             <input type="hidden" name="cita_id" value={editing.id} />

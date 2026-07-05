@@ -70,11 +70,15 @@ export async function crearCita(formData: FormData) {
   }
 
   if (cita) {
-    const observaciones = String(formData.get('notas') || '').trim()
-    if (observaciones) {
+    const observaciones = String(formData.get('observaciones_clinicas') || formData.get('notas') || '').trim()
+    const acuerdos = String(formData.get('acuerdos_tareas') || '').trim()
+    const incidencias = String(formData.get('incidencias') || '').trim()
+    if (observaciones || acuerdos || incidencias) {
       const { error: notasError } = await supabase.from('cita_notas').upsert({
         cita_id: (cita as any).id,
         observaciones_clinicas: observaciones,
+        acuerdos_tareas: acuerdos,
+        incidencias,
         last_edited_by: profile.id,
         last_edited_at: new Date().toISOString(),
       } as any)
@@ -137,11 +141,15 @@ export async function editarCita(formData: FormData) {
     if (inserError) throw new Error(inserError.message)
   }
 
-  const observaciones = String(formData.get('notas') || '').trim()
-  if (observaciones) {
+  const observaciones = String(formData.get('observaciones_clinicas') || formData.get('notas') || '').trim()
+  const acuerdos = String(formData.get('acuerdos_tareas') || '').trim()
+  const incidencias = String(formData.get('incidencias') || '').trim()
+  if (observaciones || acuerdos || incidencias) {
     const { error: notasError } = await supabase.from('cita_notas').upsert({
       cita_id: citaId,
       observaciones_clinicas: observaciones,
+      acuerdos_tareas: acuerdos,
+      incidencias,
       last_edited_by: profile.id,
       last_edited_at: new Date().toISOString(),
     } as any)

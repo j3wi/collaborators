@@ -52,6 +52,9 @@ type ContextMenuState = {
   citaId: string
 }
 
+const CONTEXT_MENU_WIDTH = 210
+const CONTEXT_MENU_HEIGHT = 190
+
 function toDate(dateStr: string): Date {
   const [year, month, day] = dateStr.split('-').map(Number)
   return new Date(year, month - 1, day, 12, 0, 0)
@@ -482,7 +485,11 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
 
   function openContextMenu(event: React.MouseEvent, citaId: string) {
     event.preventDefault()
-    setContextMenu({ x: event.clientX, y: event.clientY, citaId })
+    const maxX = window.innerWidth - CONTEXT_MENU_WIDTH - 12
+    const maxY = window.innerHeight - CONTEXT_MENU_HEIGHT - 12
+    const x = Math.max(8, Math.min(event.clientX, maxX))
+    const y = Math.max(8, Math.min(event.clientY, maxY))
+    setContextMenu({ x, y, citaId })
   }
 
   function goToContextAction(action: 'editar' | 'historia' | 'repetir' | 'borrar') {
@@ -593,6 +600,10 @@ export function CalendarViews({ citas, canEdit, initialView = 'list', initialDat
           style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, zIndex: 9999, width: '190px' }}
           onClick={(event) => event.stopPropagation()}
         >
+          <div className="panel-head" style={{ marginBottom: '6px' }}>
+            <h3 style={{ fontSize: '13px' }}>Acciones cita</h3>
+            <button type="button" className="btn soft" onClick={() => setContextMenu(null)}>x</button>
+          </div>
           <div className="button-line" style={{ display: 'grid', gap: '6px' }}>
             <button type="button" className="btn soft" onClick={() => goToContextAction('editar')}>Editar</button>
             <button type="button" className="btn soft" onClick={() => goToContextAction('historia')}>Historia</button>
