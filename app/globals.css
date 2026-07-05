@@ -171,16 +171,16 @@ tr:last-child td{border-bottom:0}
 .week-day-name{text-transform:capitalize;color:var(--blue-900);font-weight:600;font-size:12px}
 .week-day-number{color:var(--muted);font-size:11px}
 .week-hour-label{position:sticky;left:0;z-index:1;background:#fff;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);padding:6px 8px;font-size:11px;color:var(--muted);font-weight:600}
-.week-hour-cell{position:relative;height:100px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);background:#fff;overflow:hidden}
+.week-hour-cell{position:relative;height:100px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft);background:#fff;overflow:visible}
 .week-hour-cell.weekend{background:#fbfdff}
 .week-hour-cell.today{background:#f7fcff}
-.week-quarter-slot{position:absolute;left:0;right:0;height:25%;display:block;border-top:1px dashed #e9eff4}
+.week-quarter-slot{position:absolute;left:0;right:0;height:25%;display:block;border-top:1px dashed #e9eff4;background:transparent;z-index:1}
 .week-quarter-slot[data-time$=':00']{top:0;border-top:0}
 .week-quarter-slot[data-time$=':15']{top:25%}
 .week-quarter-slot[data-time$=':30']{top:50%}
 .week-quarter-slot[data-time$=':45']{top:75%}
 .week-quarter-slot:hover{background:rgba(111,168,207,.10)}
-.week-event-overlay{position:absolute;border:1px solid var(--line);border-radius:8px;background:var(--blue-100);padding:2px 4px;text-decoration:none;color:var(--text);display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.week-event-overlay{position:absolute;border:1px solid var(--line);border-radius:8px;background:var(--blue-100);padding:2px 4px;text-decoration:none;color:var(--text);display:flex;flex-direction:column;gap:2px;overflow:hidden;pointer-events:auto}
 .week-event-overlay.realizada{background:#e3f6e8;border-color:#8ec89d;color:#23573b}
 .week-event-overlay.cancelada{background:#fbe9eb;border-color:#e2aab2;color:#8a4d59;text-decoration:line-through}
 .week-event-overlay.pagada{box-shadow:inset 4px 0 0 #f0b429}

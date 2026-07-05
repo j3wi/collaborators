@@ -62,6 +62,14 @@ function formatDate(dateStr: string): string {
   return date.toLocaleDateString('es-ES', { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+function formatTime(value: string): string {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  const [h, m] = raw.split(':')
+  if (h === undefined || m === undefined) return raw
+  return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`
+}
+
 function addDays(dateStr: string, days: number): string {
   const date = toDate(dateStr)
   date.setDate(date.getDate() + days)
@@ -118,6 +126,9 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
   const pacientes = (cita.cita_pacientes || [])
     .map((row: any) => row.pacientes)
     .filter(Boolean)
+  const participantesText = pacientes.length > 0
+    ? pacientes.map((p: Paciente) => p.codigo || `${p.nombre} ${p.apellidos}`.trim()).join(', ')
+    : 'Sin participante'
 
   const nota = Array.isArray(cita.cita_notas)
     ? (cita.cita_notas[0]?.observaciones_clinicas || '')
@@ -130,15 +141,13 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
       <div>
         <strong>{cita.fecha}</strong>
         <div className="appt-time">
-          {cita.hora_inicio} - {cita.hora_fin}
+          {formatTime(cita.hora_inicio)} - {formatTime(cita.hora_fin)}
         </div>
       </div>
       <div>
         <div>{cita.servicios?.nombre ?? 'Servicio'} · {centsToEuros(cita.precio_cents)}</div>
         <div className="subtle">
-          {pacientes.length > 0
-            ? pacientes.map((p: Paciente) => p.codigo || `${p.nombre} ${p.apellidos}`.trim()).join(', ')
-            : '—'}
+          {participantesText}
         </div>
         <div className="subtle">
           {cita.colaboradores ? `${cita.colaboradores.nombre} ${cita.colaboradores.apellidos || ''}` : '—'}
@@ -241,7 +250,7 @@ function MonthView({ citas, currentDate }: { citas: Cita[]; currentDate: string 
                     className={`cal-event ${cita.estado}`}
                     title={`${cita.hora_inicio} - ${cita.servicios?.nombre || 'Cita'}`}
                   >
-                    <span className="cal-event-time">{cita.hora_inicio}</span>
+                    <span className="cal-event-time">{formatTime(cita.hora_inicio)}</span>
                     <span className="cal-event-text">{cita.servicios?.nombre || '...'}</span>
                   </a>
                 ))}
@@ -328,6 +337,11 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                       ? (cita.cita_notas[0]?.observaciones_clinicas || '')
                       : (cita.cita_notas?.observaciones_clinicas || '')
                     const noteLabel = nota ? ' · notas' : ''
+                    const participantes = (cita.cita_pacientes || [])
+                      .map((row: any) => row.pacientes)
+                      .filter(Boolean)
+                      .map((p: Paciente) => p.codigo || `${p.nombre} ${p.apellidos}`.trim())
+                      .join(', ') || 'Sin participante'
                     const classes = ['week-event-overlay']
                     if (cita.estado === 'realizada') classes.push('realizada')
                     if (cita.estado === 'cancelada') classes.push('cancelada')
@@ -343,10 +357,11 @@ function WeekView({ citas, currentDate }: { citas: Cita[]; currentDate: string }
                           height: `calc(${height}% - 4px)`,
                           left: `calc(${left}% + 3px)`,
                           width: `calc(${width}% - 6px)`,
+                          zIndex: 2,
                         }}
-                        title={`${formatDate(cita.fecha)} ${cita.hora_inicio}-${cita.hora_fin} · ${cita.servicios?.nombre || 'Servicio'}${noteLabel} · ${centsToEuros(cita.precio_cents)}`}
+                        title={`${formatDate(cita.fecha)} ${formatTime(cita.hora_inicio)}-${formatTime(cita.hora_fin)} · ${participantes} · ${cita.servicios?.nombre || 'Servicio'}${noteLabel} · ${centsToEuros(cita.precio_cents)}`}
                       >
-                        <span className="cal-event-time">{cita.hora_inicio} - {cita.hora_fin}</span>
+                        <span className="cal-event-time">{formatTime(cita.hora_inicio)} - {formatTime(cita.hora_fin)} · {participantes}</span>
                         <span className="cal-event-text">{(cita.servicios?.nombre || 'Servicio') + noteLabel}</span>
                       </a>
                     )
