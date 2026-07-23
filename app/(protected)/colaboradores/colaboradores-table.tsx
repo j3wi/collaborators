@@ -14,6 +14,7 @@ type ColaboradorRow = {
   dni: string
   direccion: string
   estado: EstadoColaborador
+  citasCount: number
 }
 
 type CollaboratorFilters = {
@@ -190,10 +191,21 @@ export function ColaboradoresTable({ colaboradores, canEdit }: { colaboradores: 
                     <div className="button-line">
                       <Link href={`/colaboradores?editId=${colaborador.id}`} className="btn soft">Editar</Link>
                       <EnviarAccesoForm colaboradorId={colaborador.id} />
-                      <form action={borrarColaborador} style={{ display: 'inline' }}>
-                        <input type="hidden" name="id" value={colaborador.id} />
-                        <button className="btn danger" type="submit">Borrar</button>
-                      </form>
+                      {colaborador.citasCount > 0 ? (
+                        <button 
+                          className="btn danger" 
+                          type="button"
+                          disabled
+                          title={`No se puede borrar. Tiene ${colaborador.citasCount} cita${colaborador.citasCount !== 1 ? 's' : ''} asignada${colaborador.citasCount !== 1 ? 's' : ''}`}
+                        >
+                          Borrar ({colaborador.citasCount})
+                        </button>
+                      ) : (
+                        <form action={borrarColaborador} style={{ display: 'inline' }}>
+                          <input type="hidden" name="id" value={colaborador.id} />
+                          <button className="btn danger" type="submit">Borrar</button>
+                        </form>
+                      )}
                     </div>
                   </td>
                 )}

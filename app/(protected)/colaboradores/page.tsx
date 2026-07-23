@@ -16,6 +16,16 @@ export default async function ColaboradoresPage({ searchParams }: { searchParams
     .select('id,nombre,apellidos,email,dni,direccion,activo')
     .order('nombre')
 
+  // Contar citas por colaborador
+  const { data: citasData } = await supabase
+    .from('citas')
+    .select('colaborador_id')
+  const citasPorColaborador = new Map<string, number>()
+  ;(citasData ?? []).forEach((cita: any) => {
+    const id = cita.colaborador_id
+    citasPorColaborador.set(id, (citasPorColaborador.get(id) ?? 0) + 1)
+  })
+
   const editing = editId ? (colaboradores ?? []).find((c: any) => c.id === editId) : null
   const collaboratorRows = (colaboradores ?? []).map((c: any) => ({
     id: c.id,
@@ -24,6 +34,7 @@ export default async function ColaboradoresPage({ searchParams }: { searchParams
     dni: c.dni || '',
     direccion: c.direccion || '',
     estado: c.activo !== false ? 'activo' : 'inactivo',
+    citasCount: citasPorColaborador.get(c.id) ?? 0,
   }))
 
   return (

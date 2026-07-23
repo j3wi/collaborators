@@ -1,10 +1,9 @@
 :PROPERTIES:
 :ID:       9809d735-5e9f-459a-ad88-3625f7952082
 :END:
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+Este es un proyecto [[https://nextjs.org][Next.js]]  que utiliza Vercel (https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 
-[[file:img/2026-06-25_23-19-31_screenshot.png]]
 
 ** Getting Started
 
@@ -13,14 +12,14 @@ Si acabas de clonar el proyecto debes primero instalar dependencias:
 npm install
 #+end_src
 
-First, run the development server:
+Para correr el proyecto en local:
 
 #+begin_src bash
 npm run dev
 #+end_src
 
 * Creación de tu variable locales
-Crear el fichero .env.local en el cual tenemos que definir estas dos variables para conectarnos con supabase:
+Crear el fichero =.env.local= en el cual tenemos que definir estas dos variables para conectarnos con supabase:
 
 #+begin_src 
 NEXT_PUBLIC_SUPABASE_URL=https://tucodigo.supabase.co

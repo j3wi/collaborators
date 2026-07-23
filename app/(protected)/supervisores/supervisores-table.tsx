@@ -11,6 +11,7 @@ type SupervisorRow = {
   nombre: string
   email: string
   estado: EstadoSupervisor
+  citasCount: number
 }
 
 type SupervisorFilters = {
@@ -158,10 +159,21 @@ export function SupervisoresTable({ supervisores }: { supervisores: SupervisorRo
                       <input type="hidden" name="id" value={supervisor.id} />
                       <button className="btn soft" type="submit">Enviar acceso</button>
                     </form>
-                    <form action={borrarSupervisor} style={{ display: 'inline' }}>
-                      <input type="hidden" name="id" value={supervisor.id} />
-                      <button className="btn danger" type="submit">Borrar</button>
-                    </form>
+                    {supervisor.citasCount > 0 ? (
+                      <button
+                        className="btn danger"
+                        type="button"
+                        disabled
+                        title={`No se puede borrar. Tiene ${supervisor.citasCount} cita${supervisor.citasCount !== 1 ? 's' : ''} asignada${supervisor.citasCount !== 1 ? 's' : ''}`}
+                      >
+                        Borrar ({supervisor.citasCount})
+                      </button>
+                    ) : (
+                      <form action={borrarSupervisor} style={{ display: 'inline' }}>
+                        <input type="hidden" name="id" value={supervisor.id} />
+                        <button className="btn danger" type="submit">Borrar</button>
+                      </form>
+                    )}
                   </div>
                 </td>
               </tr>

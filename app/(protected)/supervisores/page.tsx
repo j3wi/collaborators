@@ -20,13 +20,28 @@ export default async function SupervisoresPage({ searchParams }: { searchParams:
     .select('id,nombre,apellidos,email,activo')
     .order('nombre')
 
+  // Contar citas por supervisor
+  const { data: citasData } = await supabase
+    .from('citas')
+    .select('supervisor_id')
+  const citasPorSupervisor = new Map<string, number>()
+  ;(citasData ?? []).forEach((cita: any) => {
+    if (cita.supervisor_id) {
+      citasPorSupervisor.set(cita.supervisor_id, (citasPorSupervisor.get(cita.supervisor_id) ?? 0) + 1)
+    }
+  })
+
   const editing = editId ? (supervisores ?? []).find((s: any) => s.id === editId) : null
-  const supervisorRows = (supervisores ?? []).map((s: any) => ({
-    id: s.id,
-    nombre: `${s.nombre || ''} ${s.apellidos || ''}`.trim(),
-    email: s.email || '',
-    estado: s.activo !== false ? 'activo' : 'inactivo',
-  }))
+  const supervisorRows = (supervisores ?? []).map((s: any) => {
+    const estado: 'activo' | 'inactivo' = s.activo !== false ? 'activo' : 'inactivo'
+    return {
+      id: s.id,
+      nombre: `${s.nombre || ''} ${s.apellidos || ''}`.trim(),
+      email: s.email || '',
+      estado,
+      citasCount: citasPorSupervisor.get(s.id) ?? 0,
+    }
+  })
 
   return (
     <>
@@ -65,7 +80,7 @@ export default async function SupervisoresPage({ searchParams }: { searchParams:
       </section>
 
       <section className="panel">
-        <SupervisoresTable supervisores={supervisorRows} />
+        <SupervisoresTable supervisores={supervisorRows as any} />
       </section>
     </>
   )

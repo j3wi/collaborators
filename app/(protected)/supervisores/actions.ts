@@ -38,7 +38,12 @@ export async function borrarSupervisor(formData: FormData) {
   const profile = await requireProfile()
   if (profile.role !== 'admin' && profile.role !== 'supervisor') throw new Error('Sin permiso')
   const supabase: any = await createClient()
-  const { error } = await supabase.from('supervisores').delete().eq('id', String(formData.get('id')))
+  const supervisorId = String(formData.get('id'))
+  
+  // Soft delete: marcar como inactivo en lugar de borrar
+  const { error } = await supabase.from('supervisores').update({
+    activo: false,
+  }).eq('id', supervisorId)
   if (error) throw new Error(error.message)
   revalidatePath('/supervisores')
 }
