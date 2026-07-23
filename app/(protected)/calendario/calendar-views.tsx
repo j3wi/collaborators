@@ -2,7 +2,8 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
 import { centsToEuros } from '@/lib/money'
-import { moverCitaSemana } from './actions'
+import { borrarCita, moverCitaSemana } from './actions'
+import { getFollowingDeleteCount, getFollowingDeleteLabel, type DeleteSeriesCita } from './delete-utils'
 
 type Paciente = {
   id: string
@@ -132,7 +133,8 @@ function appointmentDurationSlots(cita: Cita): number {
   return Math.max(1, Math.ceil((end - start) / 15))
 }
 
-function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
+function CitaCard({ cita, canEdit, citas }: { cita: Cita; canEdit: boolean; citas: Cita[] }) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
   const pacientes = (cita.cita_pacientes || [])
     .map((row: any) => row.pacientes)
     .filter(Boolean)
@@ -145,6 +147,10 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
     : (cita.cita_notas?.observaciones_clinicas || '')
 
   const isInPaidLiquidation = Boolean(cita.liquidacion_id)
+  const followingDeleteCount = useMemo(
+    () => getFollowingDeleteCount(cita as DeleteSeriesCita, citas as DeleteSeriesCita[]),
+    [cita, citas],
+  )
 
   return (
     <div className="appt-card">
@@ -187,9 +193,60 @@ function CitaCard({ cita, canEdit }: { cita: Cita; canEdit: boolean }) {
             <a href={`/calendario?editId=${cita.id}`} className="btn soft">
               {isInPaidLiquidation ? 'Abrir' : 'Editar'}
             </a>
+            <button type="button" className="btn danger" onClick={() => setShowDeleteModal(true)}>
+              Borrar
+            </button>
           </>
         )}
       </div>
+
+      {showDeleteModal && (
+        <div
+          className="no-print"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.45)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1200,
+            padding: '14px',
+          }}
+          onClick={() => setShowDeleteModal(false)}
+        >
+          <div
+            className="panel"
+            style={{ width: '100%', maxWidth: '420px', marginBottom: 0 }}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="panel-head" style={{ marginBottom: '10px' }}>
+              <h3>Confirmar borrado</h3>
+              <button type="button" className="btn soft" onClick={() => setShowDeleteModal(false)}>x</button>
+            </div>
+            <div className="note" style={{ marginBottom: '10px' }}>
+              Esta acción no se puede deshacer.
+            </div>
+
+            <form action={borrarCita}>
+              <input type="hidden" name="cita_id" value={cita.id} />
+              <div className="field">
+                <label>Qué quieres borrar</label>
+                <select name="delete_mode" defaultValue="single">
+                  <option value="single">Solo esta cita</option>
+                  {followingDeleteCount > 0 && (
+                    <option value="following">{getFollowingDeleteLabel(followingDeleteCount)}</option>
+                  )}
+                </select>
+              </div>
+              <div className="button-line" style={{ justifyContent: 'flex-end' }}>
+                <button type="button" className="btn soft" onClick={() => setShowDeleteModal(false)}>Cancelar</button>
+                <button type="submit" className="btn danger">Borrar cita</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -199,7 +256,7 @@ function ListaView({ citas, canEdit }: { citas: Cita[]; canEdit: boolean }) {
     <div className="calendar-list">
       {citas.length === 0 && <div className="note">No hay citas para mostrar.</div>}
       {citas.map((cita) => (
-        <CitaCard key={cita.id} cita={cita} canEdit={canEdit} />
+        <CitaCard key={cita.id} cita={cita} canEdit={canEdit} citas={citas} />
       ))}
     </div>
   )

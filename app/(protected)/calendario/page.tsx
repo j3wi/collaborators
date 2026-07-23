@@ -2,6 +2,7 @@ import { createClient } from '@/utils/supabase/server'
 import { createAdminClient } from '@/utils/supabase/admin'
 import { requireProfile } from '@/lib/auth/server'
 import { borrarCita, crearCita, editarCita, repetirCita } from './actions'
+import { getFollowingDeleteCount, getFollowingDeleteLabel, type DeleteSeriesCita } from './delete-utils'
 import { CalendarViews } from './calendar-views'
 import { CitaForm } from './cita-form'
 
@@ -137,6 +138,7 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
   const defaultFecha = editing?.fecha || createDate || today
   const defaultInicio = editing?.hora_inicio || createTime || '10:00'
   const defaultFin = editing?.hora_fin || addOneHour(defaultInicio)
+  const followingDeleteCount = editing ? getFollowingDeleteCount(editing as DeleteSeriesCita, allCitas as DeleteSeriesCita[]) : 0
   const showCitaForm = Boolean(editing || createDate || createTime || newMode === '1')
 
   return (
@@ -219,7 +221,9 @@ export default async function CalendarioPage({ searchParams }: { searchParams: P
                 <label>Borrar cita</label>
                 <select name="delete_mode" defaultValue="single">
                   <option value="single">Solo esta cita</option>
-                  <option value="following">Esta y siguientes (mismo patron)</option>
+                  {followingDeleteCount > 0 && (
+                    <option value="following">{getFollowingDeleteLabel(followingDeleteCount)}</option>
+                  )}
                 </select>
               </div>
               <div className="field col-3">

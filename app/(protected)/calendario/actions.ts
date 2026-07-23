@@ -39,6 +39,22 @@ function minutesToTime(minutes: number): string {
   return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
 }
 
+async function deleteCitasWithRelations(supabase: any, citaIds: string[]) {
+  if (!citaIds.length) return
+
+  const { error: liquidacionCitasError } = await supabase.from('liquidacion_citas').delete().in('cita_id', citaIds)
+  if (liquidacionCitasError) throw new Error(liquidacionCitasError.message)
+
+  const { error: citaPacientesError } = await supabase.from('cita_pacientes').delete().in('cita_id', citaIds)
+  if (citaPacientesError) throw new Error(citaPacientesError.message)
+
+  const { error: citaNotasError } = await supabase.from('cita_notas').delete().in('cita_id', citaIds)
+  if (citaNotasError) throw new Error(citaNotasError.message)
+
+  const { error: deleteError } = await supabase.from('citas').delete().in('id', citaIds)
+  if (deleteError) throw new Error(deleteError.message)
+}
+
 export async function crearCita(formData: FormData) {
   const profile = await requireProfile()
   const supabase: any = await createClient()
@@ -187,12 +203,7 @@ export async function borrarCita(formData: FormData) {
   }
 
   if (deleteMode !== 'following') {
-    // Eliminar relaciones de pacientes
-    await supabase.from('cita_pacientes').delete().eq('cita_id', citaId)
-
-    // Eliminar cita
-    const { error: deleteError } = await supabase.from('citas').delete().eq('id', citaId)
-    if (deleteError) throw new Error(deleteError.message)
+    await deleteCitasWithRelations(supabase, [citaId])
   } else {
     // Borrar esta y siguientes del mismo patron (mismo dia semana + hora + colaborador + paciente compartido)
     const { data: baseCita, error: baseError } = await supabase
@@ -253,10 +264,7 @@ export async function borrarCita(formData: FormData) {
       .map((c: any) => c.id)
 
     if (deletableIds.length) {
-      await supabase.from('cita_pacientes').delete().in('cita_id', deletableIds)
-      await supabase.from('cita_notas').delete().in('cita_id', deletableIds)
-      const { error: deleteSeriesError } = await supabase.from('citas').delete().in('id', deletableIds)
-      if (deleteSeriesError) throw new Error(deleteSeriesError.message)
+      await deleteCitasWithRelations(supabase, deletableIds)
     }
   }
 
