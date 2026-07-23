@@ -2,8 +2,8 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { borrarColaborador } from './actions'
 import { EnviarAccesoForm } from './enviar-acceso-form'
+import { ConfirmarBorradoModal } from './confirmar-borrado-modal'
 
 type EstadoColaborador = 'activo' | 'inactivo'
 
@@ -191,21 +191,11 @@ export function ColaboradoresTable({ colaboradores, canEdit }: { colaboradores: 
                     <div className="button-line">
                       <Link href={`/colaboradores?editId=${colaborador.id}`} className="btn soft">Editar</Link>
                       <EnviarAccesoForm colaboradorId={colaborador.id} />
-                      {colaborador.citasCount > 0 ? (
-                        <button 
-                          className="btn danger" 
-                          type="button"
-                          disabled
-                          title={`No se puede borrar. Tiene ${colaborador.citasCount} cita${colaborador.citasCount !== 1 ? 's' : ''} asignada${colaborador.citasCount !== 1 ? 's' : ''}`}
-                        >
-                          Borrar ({colaborador.citasCount})
-                        </button>
-                      ) : (
-                        <form action={borrarColaborador} style={{ display: 'inline' }}>
-                          <input type="hidden" name="id" value={colaborador.id} />
-                          <button className="btn danger" type="submit">Borrar</button>
-                        </form>
-                      )}
+                      <ConfirmarBorradoModal
+                        colaboradorId={colaborador.id}
+                        colaboradorNombre={colaborador.nombre}
+                        citasCount={colaborador.citasCount}
+                      />
                     </div>
                   </td>
                 )}

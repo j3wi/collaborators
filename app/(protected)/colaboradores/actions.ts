@@ -47,7 +47,12 @@ export async function borrarColaborador(formData: FormData) {
   const profile = await requireProfile()
   if (profile.role !== 'admin' && profile.role !== 'supervisor') throw new Error('Sin permiso')
   const supabase: any = await createClient()
-  const { error } = await supabase.from('colaboradores').delete().eq('id', String(formData.get('id')))
+  const colaboradorId = String(formData.get('id'))
+
+  // Soft delete: marcar como inactivo en lugar de borrar
+  const { error } = await supabase.from('colaboradores').update({
+    activo: false,
+  }).eq('id', colaboradorId)
   if (error) throw new Error(error.message)
   revalidatePath('/colaboradores')
 }

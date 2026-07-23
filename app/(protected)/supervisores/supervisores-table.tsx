@@ -2,7 +2,8 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { borrarSupervisor, reenviarAccesoSupervisor } from './actions'
+import { reenviarAccesoSupervisor } from './actions'
+import { ConfirmarBorradoModal } from './confirmar-borrado-modal'
 
 type EstadoSupervisor = 'activo' | 'inactivo'
 
@@ -159,21 +160,11 @@ export function SupervisoresTable({ supervisores }: { supervisores: SupervisorRo
                       <input type="hidden" name="id" value={supervisor.id} />
                       <button className="btn soft" type="submit">Enviar acceso</button>
                     </form>
-                    {supervisor.citasCount > 0 ? (
-                      <button
-                        className="btn danger"
-                        type="button"
-                        disabled
-                        title={`No se puede borrar. Tiene ${supervisor.citasCount} cita${supervisor.citasCount !== 1 ? 's' : ''} asignada${supervisor.citasCount !== 1 ? 's' : ''}`}
-                      >
-                        Borrar ({supervisor.citasCount})
-                      </button>
-                    ) : (
-                      <form action={borrarSupervisor} style={{ display: 'inline' }}>
-                        <input type="hidden" name="id" value={supervisor.id} />
-                        <button className="btn danger" type="submit">Borrar</button>
-                      </form>
-                    )}
+                    <ConfirmarBorradoModal
+                      supervisorId={supervisor.id}
+                      supervisorNombre={supervisor.nombre}
+                      citasCount={supervisor.citasCount}
+                    />
                   </div>
                 </td>
               </tr>
